@@ -1,22 +1,29 @@
-import React from "react";
+// src/components/CalculatorModal.jsx
+import React, { useState } from "react";
 
-export default function CalculatorModal({ calcVals, setCalcVals, calcMort, fmt }) {
-  // Mortgage calculation function
+export default function CalculatorModal({ calcMort, fmt }) {
+  const [price, setPrice] = useState("");
+  const [deposit, setDeposit] = useState("");
+  const [rate, setRate] = useState(""); // annual interest rate in %
+  const [term, setTerm] = useState(""); // term in years
+  const [monthlyPayment, setMonthlyPayment] = useState(null);
+
+  // ---------------- CALCULATE MORTGAGE ----------------
   const calculateMortgage = () => {
-    const principal = parseFloat(calcVals.price || 0) - parseFloat(calcVals.deposit || 0);
-    const annualRate = parseFloat(calcVals.rate || 0) / 100;
-    const months = parseInt(calcVals.term || 0) * 12;
+    const principal = Number(price) - Number(deposit);
+    const monthlyRate = Number(rate) / 100 / 12;
+    const months = Number(term) * 12;
 
-    if (!principal || !annualRate || !months) return 0;
+    if (principal <= 0 || monthlyRate <= 0 || months <= 0) {
+      return alert("Enter valid numbers for price, deposit, rate, and term");
+    }
 
-    const monthlyRate = annualRate / 12;
     const payment =
-      (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
+      (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) /
+      (Math.pow(1 + monthlyRate, months) - 1);
 
-    return payment.toFixed(2);
+    setMonthlyPayment(payment);
   };
-
-  const monthlyPayment = calculateMortgage();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-start p-4 overflow-auto">
@@ -29,52 +36,63 @@ export default function CalculatorModal({ calcVals, setCalcVals, calcMort, fmt }
           &times;
         </button>
 
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">Mortgage Calculator</h2>
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">
+          Mortgage Calculator
+        </h2>
 
         <div className="flex flex-col gap-3">
-          <input
-            type="number"
-            placeholder="Property Price"
-            value={calcVals.price}
-            onChange={(e) =>
-              setCalcVals({ ...calcVals, price: e.target.value })
-            }
-            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-
-          <input
-            type="number"
-            placeholder="Deposit Amount"
-            value={calcVals.deposit}
-            onChange={(e) =>
-              setCalcVals({ ...calcVals, deposit: e.target.value })
-            }
-            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-
-          <input
-            type="number"
-            placeholder="Interest Rate (%)"
-            value={calcVals.rate}
-            onChange={(e) =>
-              setCalcVals({ ...calcVals, rate: e.target.value })
-            }
-            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-
-          <input
-            type="number"
-            placeholder="Term (years)"
-            value={calcVals.term}
-            onChange={(e) =>
-              setCalcVals({ ...calcVals, term: e.target.value })
-            }
-            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-
-          <div className="mt-4 p-4 bg-gray-100 rounded text-gray-800 text-center font-semibold">
-            Monthly Payment: <span className="text-blue-600">{fmt(monthlyPayment)}</span>
+          <div>
+            <label className="block mb-1 font-medium">Property Price (M)</label>
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
           </div>
+
+          <div>
+            <label className="block mb-1 font-medium">Deposit (M)</label>
+            <input
+              type="number"
+              value={deposit}
+              onChange={(e) => setDeposit(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label className="block mb-1 font-medium">Annual Interest Rate (%)</label>
+            <input
+              type="number"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label className="block mb-1 font-medium">Term (Years)</label>
+            <input
+              type="number"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+
+          <button
+            onClick={calculateMortgage}
+            className="mt-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Calculate
+          </button>
+
+          {monthlyPayment !== null && (
+            <p className="mt-3 text-lg font-semibold">
+              Estimated Monthly Payment: <span className="text-blue-700">{fmt(monthlyPayment.toFixed(2))}</span>
+            </p>
+          )}
         </div>
       </div>
     </div>

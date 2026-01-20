@@ -30,6 +30,7 @@ export default function ListModal({
       title: "",
       price: "",
       rent_price: "",
+      purpose: "buy",
       type: "House",
       district: "Maseru",
       location: "",
@@ -38,12 +39,14 @@ export default function ListModal({
       size: "",
       description: "",
       images: [],
+      phone: "",
+      whatsapp: "",
     });
   };
 
   const handleSubmit = async () => {
-    if (!newProp.title || !newProp.price || imagesFiles.length === 0) {
-      return alert("Please fill in title, price, and upload at least 1 image.");
+    if (!newProp.title || (!newProp.price && !newProp.rent_price) || imagesFiles.length === 0) {
+      return alert("Please fill in title, price/rent, and upload at least 1 image.");
     }
     await listPropBackend(newProp, imagesFiles);
     closeModal();
@@ -60,6 +63,17 @@ export default function ListModal({
         </button>
 
         <h2 className="text-2xl font-bold mb-4 text-gray-800">List New Property</h2>
+
+        {/* Purpose selector: Buy / Rent */}
+        <select
+          name="purpose"
+          value={newProp.purpose}
+          onChange={handleChange}
+          className="w-full mb-3 px-3 py-2 border rounded"
+        >
+          <option value="buy">Buy</option>
+          <option value="rent">Rent</option>
+        </select>
 
         <input
           type="text"
@@ -165,6 +179,25 @@ export default function ListModal({
           className="w-full mb-3 px-3 py-2 border rounded"
         />
 
+        {/* Optional contact info */}
+        <input
+          type="text"
+          name="phone"
+          placeholder="Phone Number (Optional)"
+          value={newProp.phone}
+          onChange={handleChange}
+          className="w-full mb-3 px-3 py-2 border rounded"
+        />
+        <input
+          type="text"
+          name="whatsapp"
+          placeholder="WhatsApp (Optional)"
+          value={newProp.whatsapp}
+          onChange={handleChange}
+          className="w-full mb-3 px-3 py-2 border rounded"
+        />
+
+        {/* Images */}
         <div className="mb-3">
           <label className="font-medium mb-1 block">Property Images</label>
           <input type="file" multiple onChange={handleImageChange} className="mb-2" />

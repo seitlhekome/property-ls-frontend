@@ -1,3 +1,4 @@
+// src/components/PropertyList.jsx
 import React from "react";
 
 export default function PropertyList({
@@ -7,85 +8,70 @@ export default function PropertyList({
   fmt,
   setSelectedProperty,
   currentUser,
+  loading,
+  activeTab,
 }) {
-  if (!properties) return null;
+  // Filter properties by activeTab (buy/rent)
+  const filtered = properties.filter((p) => p.purpose === activeTab);
+
+  if (loading) return <p className="p-6">Loading properties...</p>;
+  if (filtered.length === 0)
+    return <p className="p-6 text-center text-gray-600">No properties found for {activeTab}.</p>;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-      {properties.length === 0 ? (
-        <p className="col-span-full text-center text-gray-600">
-          No properties found.
-        </p>
-      ) : (
-        properties.map((property) => {
-          const isFav = favorites.includes(property.id);
+    <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {filtered.map((prop) => (
+        <div
+          key={prop.id}
+          className="border rounded shadow p-4 bg-white flex flex-col"
+        >
+          {/* Property Image */}
+          {prop.images && prop.images.length > 0 && (
+            <img
+              src={prop.images[0]}
+              alt={prop.title}
+              className="w-full h-48 object-cover mb-2 rounded cursor-pointer"
+              onClick={() => setSelectedProperty(prop)}
+            />
+          )}
 
-          return (
-            <div
-              key={property.id}
-              className="border rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition"
-              onClick={() => setSelectedProperty(property)}
+          {/* Property Info */}
+          <h2 className="text-lg font-semibold">{prop.title}</h2>
+          <p className="text-gray-600">{prop.type} | {prop.district}</p>
+
+          {/* Price */}
+          <p className="font-bold text-blue-600">
+            {prop.purpose === "buy"
+              ? `Sale: ${fmt(prop.price)}`
+              : `Rent: ${fmt(prop.rent_price)} / month`}
+          </p>
+
+          {/* Optional Contact */}
+          {(prop.phone || prop.whatsapp) && (
+            <p className="text-gray-500 text-sm mt-1">
+              Contact: {prop.phone ? prop.phone : ""}{prop.phone && prop.whatsapp ? " / " : ""}{prop.whatsapp ? prop.whatsapp : ""}
+            </p>
+          )}
+
+          <p className="text-gray-500 text-sm mt-1">
+            Posted: {new Date(prop.date_posted).toLocaleString()}
+          </p>
+
+          {/* Favorites */}
+          {currentUser && (
+            <button
+              onClick={() => toggleFav(prop.id)}
+              className={`mt-2 px-2 py-1 rounded text-sm ${
+                favorites.includes(prop.id)
+                  ? "bg-red-600 text-white"
+                  : "bg-gray-200 text-gray-800"
+              }`}
             >
-              {/* Property Image */}
-              <img
-                src={
-                  property.images?.length
-                    ? property.images[0]
-                    : "/placeholder.jpg"
-                }
-                alt={property.title || "Property"}
-                className="h-48 w-full object-cover"
-              />
-
-              {/* Property Info */}
-              <div className="p-3 flex flex-col gap-1">
-                <h2 className="font-semibold text-lg text-gray-800">
-                  {property.title || "Untitled"}
-                </h2>
-
-                <p className="text-blue-700 font-bold mt-1 text-lg">
-                  {property.price ? fmt(property.price) : "Price N/A"}
-                </p>
-
-                <p className="text-sm text-gray-600">
-                  {property.district || ""} - {property.location || ""}
-                </p>
-
-                {/* WhatsApp on card if available */}
-                {property.whatsapp && (
-                  <p className="text-sm text-green-600">
-                    WhatsApp: {property.whatsapp}
-                  </p>
-                )}
-
-                {/* Listing Date */}
-                {property.date_posted && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Listed: {new Date(property.date_posted).toLocaleDateString()}
-                  </p>
-                )}
-
-                {/* Favorite Button */}
-                {currentUser && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFav(property.id);
-                    }}
-                    className={`mt-2 px-3 py-1 text-sm rounded font-medium transition ${
-                      isFav
-                        ? "bg-red-600 text-white hover:bg-red-700"
-                        : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-                    }`}
-                  >
-                    {isFav ? "❤️ Favorited" : "🤍 Favorite"}
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })
-      )}
+              {favorites.includes(prop.id) ? "♥ Favorited" : "♡ Favorite"}
+            </button>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

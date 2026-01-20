@@ -1,3 +1,4 @@
+// src/App.js
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -18,7 +19,6 @@ function App() {
   // ---------------- UI STATES ----------------
   const [activeTab, setActiveTab] = useState("buy");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedProperty, setSelectedProperty] = useState(null);
   const [favorites, setFavorites] = useState([]);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -88,7 +88,8 @@ function App() {
 
   // ---------------- AUTH ----------------
   const handleLogin = async () => {
-    if (!authForm.email || !authForm.password) return alert("Enter email and password");
+    if (!authForm.email || !authForm.password)
+      return alert("Enter email and password");
     setLoading(true);
     try {
       const res = await axios.post(`${API}/api/auth/login`, {
@@ -182,6 +183,11 @@ function App() {
     navigate("/");
   };
 
+  // ---------------- NAVIGATE TO PROPERTY ----------------
+  const goToProperty = (propertyId) => {
+    navigate(`/property/${propertyId}`);
+  };
+
   // ---------------- RENDER ----------------
   return (
     <div className="min-h-screen bg-gray-50">
@@ -207,15 +213,17 @@ function App() {
                 p.title.toLowerCase().includes(searchQuery.toLowerCase())
               )}
               favorites={favorites}
-              toggleFav={(id) =>
+              toggleFav={(id) => {
+                if (!currentUser) return alert("Login to favorite a listing");
                 setFavorites((prev) =>
                   prev.includes(id)
                     ? prev.filter((f) => f !== id)
                     : [...prev, id]
-                )
-              }
+                );
+              }}
               fmt={fmt}
-              setSelectedProperty={setSelectedProperty}
+              setSelectedProperty={goToProperty} // Navigate to /property/:id
+              currentUser={currentUser}
               loading={loading}
             />
           }
@@ -224,23 +232,18 @@ function App() {
         <Route
           path="/property/:id"
           element={
-            selectedProperty ? (
-              <PropertyDetail
-                property={selectedProperty}
-                setSelectedProperty={setSelectedProperty}
-                toggleFav={() =>
-                  setFavorites((prev) =>
-                    prev.includes(selectedProperty.id)
-                      ? prev.filter((f) => f !== selectedProperty.id)
-                      : [...prev, selectedProperty.id]
-                  )
-                }
-                favorites={favorites}
-                currentUser={currentUser}
-              />
-            ) : (
-              <Navigate to="/" />
-            )
+            <PropertyDetail
+              favorites={favorites}
+              toggleFav={(id) => {
+                if (!currentUser) return alert("Login to favorite a listing");
+                setFavorites((prev) =>
+                  prev.includes(id)
+                    ? prev.filter((f) => f !== id)
+                    : [...prev, id]
+                );
+              }}
+              currentUser={currentUser}
+            />
           }
         />
 

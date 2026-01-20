@@ -5,7 +5,7 @@ import ListModal from "./ListModal";
 
 const API = "http://localhost:3001";
 
-export default function Dashboard({ currentUser, setShowListModal }) {
+export default function Dashboard({ currentUser, setShowListModal, fetchProperties, properties }) {
   const [myProperties, setMyProperties] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -13,31 +13,10 @@ export default function Dashboard({ currentUser, setShowListModal }) {
   const [editProp, setEditProp] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Fetch agent's own properties
-  const fetchMyProperties = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    setLoading(true);
-    try {
-      const res = await axios.get(`${API}/api/properties`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const agentProps = res.data.filter((p) => p.agent_id === currentUser.id);
-      // Sort newest first
-      agentProps.sort((a, b) => new Date(b.date_posted) - new Date(a.date_posted));
-      setMyProperties(agentProps);
-    } catch (err) {
-      console.error("Failed to fetch agent properties:", err);
-    }
-    setLoading(false);
-  };
-
   useEffect(() => {
-    fetchMyProperties();
-  }, []);
+    setMyProperties(properties);
+  }, [properties]);
 
-  // Delete property
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this property?")) return;
 
@@ -50,19 +29,18 @@ export default function Dashboard({ currentUser, setShowListModal }) {
       });
       setMyProperties((prev) => prev.filter((p) => p.id !== id));
       alert("Property deleted successfully");
+      fetchProperties();
     } catch (err) {
       console.error("Delete failed:", err);
       alert(err.response?.data?.error || "Failed to delete property");
     }
   };
 
-  // Open Edit Modal
   const handleEdit = (prop) => {
     setEditProp(prop);
     setShowEditModal(true);
   };
 
-  // Update property
   const updateProp = async (propData, imageFiles) => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -70,7 +48,6 @@ export default function Dashboard({ currentUser, setShowListModal }) {
     try {
       const formData = new FormData();
       imageFiles.forEach((file) => formData.append("images", file));
-
       Object.keys(propData).forEach((key) => {
         if (key !== "images") formData.append(key, propData[key]);
       });
@@ -82,7 +59,7 @@ export default function Dashboard({ currentUser, setShowListModal }) {
       alert("Property updated successfully");
       setShowEditModal(false);
       setEditProp(null);
-      fetchMyProperties();
+      fetchProperties();
     } catch (err) {
       console.error("Update property failed:", err);
       alert(err.response?.data?.error || "Failed to update property");
@@ -125,9 +102,16 @@ export default function Dashboard({ currentUser, setShowListModal }) {
 
               <h2 className="text-lg font-semibold">{prop.title}</h2>
               <p className="text-gray-600">{prop.type} | {prop.district}</p>
-              <p className="font-bold">{fmtPrice(prop.price)}</p>
+              <p className="font-bold">
+                {prop.purpose === "buy" ? fmtPrice(prop.price) : `M ${prop.rent_price.toLocaleString()}/month`}
+              </p>
+              {(prop.phone || prop.whatsapp) && (
+                <p className="text-gray-700 text-sm">
+                  Contact: {prop.phone || ""} {prop.whatsapp ? `(WhatsApp: ${prop.whatsapp})` : ""}
+                </p>
+              )}
               <p className="text-gray-500 text-sm mt-1">
-                Posted: {new Date(prop.date_posted).toLocaleString()}
+                Posted: {new Date(prop.date_posted).toLocaleDateString()}
               </p>
 
               <div className="mt-3 flex gap-2">
@@ -149,7 +133,6 @@ export default function Dashboard({ currentUser, setShowListModal }) {
         </div>
       )}
 
-      {/* Edit Modal */}
       {showEditModal && editProp && (
         <ListModal
           newProp={editProp}
