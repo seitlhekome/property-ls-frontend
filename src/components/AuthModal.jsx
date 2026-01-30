@@ -20,8 +20,15 @@ export default function AuthModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded shadow-md w-96">
-        <h2 className="text-2xl font-bold mb-4">
+      <div className="bg-white p-6 rounded shadow-md w-96 relative">
+        <button
+          onClick={() => setShowAuthModal(false)}
+          className="absolute top-2 right-2 text-gray-600 text-2xl font-bold"
+        >
+          &times;
+        </button>
+
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">
           {authIsSignup ? "Create Account" : "Sign In"}
         </h2>
 
@@ -59,7 +66,7 @@ export default function AuthModal({
 
         {authIsSignup && (
           <>
-            <label className="font-medium">Role</label>
+            <label className="font-medium mb-1 block">Role</label>
             <select
               value={authForm.role}
               onChange={(e) =>
@@ -67,7 +74,7 @@ export default function AuthModal({
               }
               className="w-full mb-3 px-3 py-2 border rounded"
             >
-              <option value="buyer">Buyer</option>
+              <option value="user">Buyer</option>
               <option value="agent">Agent</option>
             </select>
 
@@ -86,7 +93,9 @@ export default function AuthModal({
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+          className={`w-full py-2 rounded text-white ${
+            loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+          }`}
         >
           {loading
             ? "Please wait..."
@@ -98,20 +107,11 @@ export default function AuthModal({
         <div className="mt-4 text-center">
           <button
             onClick={() => setAuthIsSignup(!authIsSignup)}
-            className="text-blue-600"
+            className="text-blue-600 hover:underline"
           >
             {authIsSignup
-              ? "Have an account? Sign In"
+              ? "Already have an account? Sign In"
               : "Create an account"}
-          </button>
-        </div>
-
-        <div className="mt-3 text-center">
-          <button
-            onClick={() => setShowAuthModal(false)}
-            className="text-gray-500 text-sm"
-          >
-            Close
           </button>
         </div>
       </div>

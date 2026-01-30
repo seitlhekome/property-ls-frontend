@@ -1,83 +1,91 @@
-// src/App.js
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 import Header from "./components/Header";
 import PropertyList from "./components/PropertyList";
+import PropertyDetail from "./components/PropertyDetail";
+import Dashboard from "./components/Dashboard";
 import AuthModal from "./components/AuthModal";
 import ListModal from "./components/ListModal";
 import CalculatorModal from "./components/CalculatorModal";
-import Dashboard from "./components/Dashboard";
-import PropertyDetail from "./components/PropertyDetail";
+import Footer from "./components/Footer";
 
 const API = "http://localhost:3001";
 
-function App() {
+export default function App() {
   const navigate = useNavigate();
 
-  // ---------------- UI STATES ----------------
-  const [activeTab, setActiveTab] = useState("buy");
+  // ================= UI STATE =================
+  const [activeTab, setActiveTab] = useState("buy"); // "buy" or "rent"
   const [searchQuery, setSearchQuery] = useState("");
-  const [favorites, setFavorites] = useState([]);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showListModal, setShowListModal] = useState(false);
 
-  // ---------------- DATA STATES ----------------
+  // ================= DATA STATE =================
   const [currentUser, setCurrentUser] = useState(null);
   const [properties, setProperties] = useState([]);
+  const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ---------------- AUTH MODAL ----------------
+  // ================= AUTH FORM =================
   const [authIsSignup, setAuthIsSignup] = useState(true);
   const [authForm, setAuthForm] = useState({
     name: "",
     email: "",
     password: "",
-    role: "agent",
+    role: "user",
     whatsapp: "",
   });
 
-  // ---------------- NEW PROPERTY ----------------
+  // ================= NEW PROPERTY =================
   const [newProp, setNewProp] = useState({
     title: "",
-    price: "",
+    price: 0,
+    rent_price: 0,
+    purpose: "buy",
     type: "House",
     district: "Maseru",
     location: "",
-    bedrooms: "",
-    bathrooms: "",
-    size: "",
+    bedrooms: 0,
+    bathrooms: 0,
+    size: 0,
     description: "",
     images: [],
+    phone: "",
+    whatsapp: "",
   });
 
-  // ---------------- LOAD CURRENT USER ----------------
+  // ================= LOAD USER =================
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    const savedToken = localStorage.getItem("token");
-    if (savedUser && savedToken) {
+    const u = localStorage.getItem("user");
+    const t = localStorage.getItem("token");
+
+    if (u && t) {
       try {
-        setCurrentUser(JSON.parse(savedUser));
-      } catch (e) {
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
+        setCurrentUser(JSON.parse(u));
+      } catch {
+        localStorage.clear();
       }
     }
   }, []);
 
-  // ---------------- LOAD PROPERTIES ----------------
+  // ================= FETCH PROPERTIES =================
   const fetchProperties = async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API}/api/properties`);
-      const sorted = res.data.sort(
-        (a, b) => new Date(b.date_posted) - new Date(a.date_posted)
-      );
-      setProperties(sorted);
+      const formatted = res.data.map((p) => ({
+        ...p,
+        purpose: p.purpose || "buy",
+        images: p.images || [],
+        phone: p.phone || "",
+        whatsapp: p.whatsapp || "",
+      }));
+      setProperties(formatted);
     } catch (err) {
-      console.error("Fetch properties failed:", err);
+      console.error("Failed to fetch properties", err);
     }
     setLoading(false);
   };
@@ -86,21 +94,25 @@ function App() {
     fetchProperties();
   }, []);
 
-  // ---------------- AUTH ----------------
+  // ================= AUTH =================
   const handleLogin = async () => {
     if (!authForm.email || !authForm.password)
       return alert("Enter email and password");
+
     setLoading(true);
     try {
       const res = await axios.post(`${API}/api/auth/login`, {
         email: authForm.email,
         password: authForm.password,
       });
+
       setCurrentUser(res.data);
       localStorage.setItem("user", JSON.stringify(res.data));
       localStorage.setItem("token", res.data.token);
+
       setShowAuthModal(false);
       fetchProperties();
+
       if (res.data.role === "agent") navigate("/agent/dashboard");
     } catch (err) {
       alert(err.response?.data?.error || "Login failed");
@@ -111,14 +123,18 @@ function App() {
   const handleSignup = async () => {
     if (!authForm.name || !authForm.email || !authForm.password)
       return alert("Fill all required fields");
+
     setLoading(true);
     try {
       const res = await axios.post(`${API}/api/auth/signup`, authForm);
+
       setCurrentUser(res.data);
       localStorage.setItem("user", JSON.stringify(res.data));
       localStorage.setItem("token", res.data.token);
+
       setShowAuthModal(false);
       fetchProperties();
+
       if (res.data.role === "agent") navigate("/agent/dashboard");
     } catch (err) {
       alert(err.response?.data?.error || "Signup failed");
@@ -126,69 +142,57 @@ function App() {
     setLoading(false);
   };
 
-  // ---------------- LIST PROPERTY ----------------
+  // ================= LIST PROPERTY =================
   const listProp = async (propData, imageFiles) => {
     const token = localStorage.getItem("token");
     if (!token || currentUser?.role !== "agent") return;
 
-    if (!propData.title || !propData.price || imageFiles.length === 0)
-      return alert("Title, price, and images are required");
-
     setLoading(true);
     try {
-      const formData = new FormData();
-      imageFiles.forEach((file) => formData.append("images", file));
-      Object.keys(propData).forEach((key) => {
-        if (key !== "images") formData.append(key, propData[key]);
+      const fd = new FormData();
+
+      imageFiles.forEach((f) => fd.append("images", f));
+
+      Object.keys(propData).forEach((k) => {
+        if (k !== "images") fd.append(k, propData[k] || "");
       });
 
-      const res = await axios.post(`${API}/api/properties`, formData, {
+      await axios.post(`${API}/api/properties`, fd, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (res.data.id) {
-        alert("✅ Property listed successfully");
-        setShowListModal(false);
-        setNewProp({
-          title: "",
-          price: "",
-          type: "House",
-          district: "Maseru",
-          location: "",
-          bedrooms: "",
-          bathrooms: "",
-          size: "",
-          description: "",
-          images: [],
-        });
-        fetchProperties();
-      } else {
-        alert("Listing failed!");
-      }
+      setShowListModal(false);
+      fetchProperties();
     } catch (err) {
-      console.error("List property error:", err);
       alert(err.response?.data?.error || "Failed to list property");
     }
     setLoading(false);
   };
 
-  // ---------------- FORMAT PRICE ----------------
-  const fmt = (val) => `M ${Number(val || 0).toLocaleString()}`;
-
-  // ---------------- LOGOUT ----------------
+  // ================= LOGOUT =================
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
+    localStorage.clear();
     navigate("/");
   };
 
-  // ---------------- NAVIGATE TO PROPERTY ----------------
-  const goToProperty = (propertyId) => {
-    navigate(`/property/${propertyId}`);
-  };
+  // ================= HELPERS =================
+  const fmt = (v) => `M ${Number(v || 0).toLocaleString()}`;
 
-  // ---------------- RENDER ----------------
+  // ================= FILTER =================
+  const filteredProperties = properties.filter((p) => {
+    const purpose = p.purpose || "buy";
+    const matchesTab = purpose === activeTab;
+
+    const matchesSearch =
+      !searchQuery ||
+      p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.location?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    return matchesTab && matchesSearch;
+  });
+
+  // ================= RENDER =================
   return (
     <div className="min-h-screen bg-gray-50">
       <Header
@@ -201,7 +205,6 @@ function App() {
         setActiveTab={setActiveTab}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        userRoleLoading={false}
       />
 
       <Routes>
@@ -209,20 +212,16 @@ function App() {
           path="/"
           element={
             <PropertyList
-              properties={properties.filter((p) =>
-                p.title.toLowerCase().includes(searchQuery.toLowerCase())
-              )}
+              properties={filteredProperties}
               favorites={favorites}
               toggleFav={(id) => {
-                if (!currentUser) return alert("Login to favorite a listing");
-                setFavorites((prev) =>
-                  prev.includes(id)
-                    ? prev.filter((f) => f !== id)
-                    : [...prev, id]
+                if (!currentUser) return alert("Login to favorite");
+                setFavorites((p) =>
+                  p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
                 );
               }}
               fmt={fmt}
-              setSelectedProperty={goToProperty} // Navigate to /property/:id
+              setSelectedProperty={(p) => navigate(`/property/${p.id}`)}
               currentUser={currentUser}
               loading={loading}
             />
@@ -235,11 +234,9 @@ function App() {
             <PropertyDetail
               favorites={favorites}
               toggleFav={(id) => {
-                if (!currentUser) return alert("Login to favorite a listing");
-                setFavorites((prev) =>
-                  prev.includes(id)
-                    ? prev.filter((f) => f !== id)
-                    : [...prev, id]
+                if (!currentUser) return alert("Login to favorite");
+                setFavorites((p) =>
+                  p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
                 );
               }}
               currentUser={currentUser}
@@ -254,7 +251,6 @@ function App() {
               <Dashboard
                 setShowListModal={setShowListModal}
                 currentUser={currentUser}
-                fetchProperties={fetchProperties}
                 properties={properties.filter(
                   (p) => p.agent_id === currentUser.id
                 )}
@@ -291,14 +287,14 @@ function App() {
 
       {showCalculator && (
         <CalculatorModal
-          calcVals={{ price: "", deposit: "200000", rate: "11.5", term: "20" }}
+          calcVals={{}}
           setCalcVals={() => {}}
           calcMort={setShowCalculator}
           fmt={fmt}
         />
       )}
+
+      <Footer />
     </div>
   );
 }
-
-export default App;

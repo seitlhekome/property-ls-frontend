@@ -5,6 +5,8 @@ const CreateProperty = ({ currentUser }) => {
   const [form, setForm] = useState({
     title: "",
     price: "",
+    rent_price: "",
+    purpose: "buy", // <-- important for filtering
     type: "House",
     district: "Maseru",
     location: "",
@@ -52,8 +54,8 @@ const CreateProperty = ({ currentUser }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!currentUser) return alert("You must be logged in to create a property.");
-    if (!form.title || !form.price || !form.images.length)
-      return alert("Title, price, and at least 1 image are required.");
+    if (!form.title || (!form.price && !form.rent_price) || !form.images.length)
+      return alert("Title, price/rent, and at least 1 image are required.");
 
     setLoading(true);
 
@@ -63,15 +65,18 @@ const CreateProperty = ({ currentUser }) => {
       const payload = {
         ...form,
         images: urls,
-        agent_id: currentUser.id || 1, // replace with your user id field
+        agent_id: currentUser.id || 1,
+        purpose: form.purpose.toLowerCase(), // normalize to lowercase
       };
 
-      const res = await axios.post("http://localhost:3001/api/properties", payload);
+      await axios.post("http://localhost:3001/api/properties", payload);
 
       alert("Property created successfully!");
       setForm({
         title: "",
         price: "",
+        rent_price: "",
+        purpose: "buy",
         type: "House",
         district: "Maseru",
         location: "",
@@ -94,6 +99,15 @@ const CreateProperty = ({ currentUser }) => {
     <div className="p-6 max-w-2xl mx-auto bg-white rounded shadow">
       <h2 className="text-xl font-semibold mb-4">Create Property Listing</h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        {/* Purpose selector */}
+        <select
+          value={form.purpose}
+          onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+        >
+          <option value="buy">Buy</option>
+          <option value="rent">Rent</option>
+        </select>
+
         <input
           placeholder="Title"
           value={form.title}
@@ -102,10 +116,15 @@ const CreateProperty = ({ currentUser }) => {
         />
         <input
           type="number"
-          placeholder="Price"
+          placeholder="Sale Price (for Buy)"
           value={form.price}
           onChange={(e) => setForm({ ...form, price: e.target.value })}
-          required
+        />
+        <input
+          type="number"
+          placeholder="Rent Price / month (for Rent)"
+          value={form.rent_price}
+          onChange={(e) => setForm({ ...form, rent_price: e.target.value })}
         />
         <input
           placeholder="Type (House, Apartment...)"

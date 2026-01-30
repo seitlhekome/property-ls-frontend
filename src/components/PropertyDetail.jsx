@@ -1,91 +1,160 @@
-// src/components/PropertyDetail.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
+
+const API = "http://localhost:3001";
 
 export default function PropertyDetail({
-  property,
-  setSelectedProperty,
+  favorites = [],
   toggleFav,
-  favorites,
   currentUser,
 }) {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [property, setProperty] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [mainImageIndex, setMainImageIndex] = useState(0);
-  if (!property) return null;
 
-  const isFav = favorites.includes(property.id);
+  // ---------------- FETCH PROPERTY ----------------
+  useEffect(() => {
+    const fetchProperty = async () => {
+      try {
+        const res = await axios.get(`${API}/api/properties`);
+        const found = res.data.find((p) => String(p.id) === String(id));
+        setProperty(found || null);
+      } catch (err) {
+        console.error("Failed to load property:", err);
+        setProperty(null);
+      }
+      setLoading(false);
+    };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-start p-4 overflow-auto">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl relative p-6">
+    fetchProperty();
+  }, [id]);
+
+  // ---------------- STATES ----------------
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-500">
+        Loading property…
+      </div>
+    );
+  }
+
+  if (!property) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <p className="text-gray-500">Property not found.</p>
         <button
-          onClick={() => setSelectedProperty(null)}
-          className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 text-2xl font-bold"
+          onClick={() => navigate("/")}
+          className="px-4 py-2 bg-blue-600 text-white rounded"
         >
-          &times;
-        </button>
-
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">{property.title || "Untitled Property"}</h2>
-
-        {property.images?.length ? (
-          <div>
-            <img
-              src={property.images[mainImageIndex]}
-              alt={`Property ${mainImageIndex + 1}`}
-              className="w-full h-72 object-cover rounded mb-2"
-            />
-            <div className="flex gap-2 overflow-x-auto">
-              {property.images.map((img, idx) => (
-                <img
-                  key={idx}
-                  src={img}
-                  alt={`Thumbnail ${idx + 1}`}
-                  className={`h-20 w-20 object-cover rounded cursor-pointer border-2 ${
-                    idx === mainImageIndex ? "border-blue-600" : "border-transparent"
-                  }`}
-                  onClick={() => setMainImageIndex(idx)}
-                />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <p className="text-gray-500 mb-4">No images available</p>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
-          <p><strong>Price:</strong> {property.purpose === "buy" ? (property.price ? `M ${property.price}` : "N/A") : (property.rent_price ? `M ${property.rent_price}` : "N/A")}</p>
-          <p><strong>Type:</strong> {property.type || "N/A"}</p>
-          <p><strong>District:</strong> {property.district || "N/A"}</p>
-          <p><strong>Location:</strong> {property.location || "N/A"}</p>
-          <p><strong>Size:</strong> {property.size ? `${property.size} m²` : "N/A"}</p>
-          <p><strong>Bedrooms:</strong> {property.bedrooms || "N/A"}</p>
-          <p><strong>Bathrooms:</strong> {property.bathrooms || "N/A"}</p>
-          {(property.phone || property.whatsapp) && (
-            <p><strong>Contact:</strong> {property.phone || ""} {property.whatsapp ? `WhatsApp: ${property.whatsapp}` : ""}</p>
-          )}
-        </div>
-
-        <p className="mb-4"><strong>Description:</strong> {property.description || "No description provided."}</p>
-
-        {property.agent_name && (
-          <div className="mb-4 border-t pt-4">
-            <h3 className="font-semibold text-lg mb-2">Agent Info</h3>
-            <p><strong>Name:</strong> {property.agent_name}</p>
-            {property.phone && <p><strong>Phone:</strong> {property.phone}</p>}
-            {property.whatsapp && <p><strong>WhatsApp:</strong> {property.whatsapp}</p>}
-          </div>
-        )}
-
-        <button
-          onClick={() => {
-            if (!currentUser) return alert("Please log in to favorite properties");
-            toggleFav(property.id);
-          }}
-          className={`mt-2 px-4 py-2 rounded font-medium transition ${
-            isFav ? "bg-red-600 text-white hover:bg-red-700" : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-          }`}
-        >
-          {isFav ? "❤️ Favorited" : "🤍 Favorite"}
+          Back to listings
         </button>
       </div>
+    );
+  }
+
+  const isFav = favorites.includes(property.id);
+  const images =
+    Array.isArray(property.images) && property.images.length > 0
+      ? property.images
+      : ["https://via.placeholder.com/800x500?text=No+Image"];
+
+  // ---------------- RENDER ----------------
+  return (
+    <div className="max-w-6xl mx-auto p-6">
+      {/* BACK */}
+      <button
+        onClick={() => navigate("/")}
+        className="mb-4 text-blue-600 hover:underline"
+      >
+        ← Back to listings
+      </button>
+
+      {/* TITLE */}
+      <h1 className="text-3xl font-bold text-gray-800 mb-4">
+        {property.title || "Untitled Property"}
+      </h1>
+
+      {/* IMAGES */}
+      <div className="mb-6">
+        <img
+          src={images[mainImageIndex]}
+          alt="Property"
+          className="w-full h-96 object-cover rounded mb-3"
+        />
+
+        <div className="flex gap-2 overflow-x-auto">
+          {images.map((img, i) => (
+            <img
+              key={i}
+              src={img}
+              alt={`Thumb ${i}`}
+              onClick={() => setMainImageIndex(i)}
+              className={`h-20 w-24 object-cover rounded cursor-pointer border-2 ${
+                i === mainImageIndex
+                  ? "border-blue-600"
+                  : "border-transparent"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* DETAILS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <p><strong>Type:</strong> {property.type || "N/A"}</p>
+        <p><strong>District:</strong> {property.district || "N/A"}</p>
+        <p><strong>Location:</strong> {property.location || "N/A"}</p>
+        <p><strong>Bedrooms:</strong> {property.bedrooms || "N/A"}</p>
+        <p><strong>Bathrooms:</strong> {property.bathrooms || "N/A"}</p>
+        <p><strong>Size:</strong> {property.size ? `${property.size} m²` : "N/A"}</p>
+        <p className="text-blue-600 font-bold text-lg">
+          {property.price > 0 && `M ${property.price.toLocaleString()}`}
+          {property.rent_price > 0 &&
+            ` · M ${property.rent_price.toLocaleString()} / month`}
+        </p>
+      </div>
+
+      {/* DESCRIPTION */}
+      <div className="mb-6">
+        <h3 className="font-semibold text-lg mb-2">Description</h3>
+        <p className="text-gray-700">
+          {property.description || "No description provided."}
+        </p>
+      </div>
+
+      {/* AGENT */}
+      {property.agent_name && (
+        <div className="border-t pt-4 mb-6">
+          <h3 className="font-semibold text-lg mb-2">Agent Information</h3>
+          <p><strong>Name:</strong> {property.agent_name}</p>
+          {property.agent_phone && (
+            <p><strong>Phone:</strong> {property.agent_phone}</p>
+          )}
+          {property.whatsapp && (
+            <p><strong>WhatsApp:</strong> {property.whatsapp}</p>
+          )}
+        </div>
+      )}
+
+      {/* FAVORITE */}
+      <button
+        onClick={() => {
+          if (!currentUser)
+            return alert("Please log in to favorite properties");
+          toggleFav(property.id);
+        }}
+        className={`px-4 py-2 rounded font-medium ${
+          isFav
+            ? "bg-red-600 text-white hover:bg-red-700"
+            : "bg-gray-200 hover:bg-gray-300"
+        }`}
+      >
+        {isFav ? "❤️ Favorited" : "🤍 Favorite"}
+      </button>
     </div>
   );
 }

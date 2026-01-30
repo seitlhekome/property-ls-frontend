@@ -1,77 +1,114 @@
-// src/components/PropertyList.jsx
 import React from "react";
 
 export default function PropertyList({
-  properties,
-  favorites,
+  properties = [],
+  favorites = [],
   toggleFav,
   fmt,
   setSelectedProperty,
   currentUser,
   loading,
-  activeTab,
 }) {
-  // Filter properties by activeTab (buy/rent)
-  const filtered = properties.filter((p) => p.purpose === activeTab);
+  // ---------------- LOADING ----------------
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 text-center text-gray-500">
+        Loading properties…
+      </div>
+    );
+  }
 
-  if (loading) return <p className="p-6">Loading properties...</p>;
-  if (filtered.length === 0)
-    return <p className="p-6 text-center text-gray-600">No properties found for {activeTab}.</p>;
+  // ---------------- EMPTY STATE ----------------
+  if (!loading && properties.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 text-center text-gray-500">
+        No properties available.
+      </div>
+    );
+  }
 
+  // ---------------- RENDER LIST ----------------
   return (
-    <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {filtered.map((prop) => (
-        <div
-          key={prop.id}
-          className="border rounded shadow p-4 bg-white flex flex-col"
-        >
-          {/* Property Image */}
-          {prop.images && prop.images.length > 0 && (
-            <img
-              src={prop.images[0]}
-              alt={prop.title}
-              className="w-full h-48 object-cover mb-2 rounded cursor-pointer"
-              onClick={() => setSelectedProperty(prop)}
-            />
-          )}
+    <div className="max-w-7xl mx-auto p-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {properties.map((p) => {
+        const image =
+          Array.isArray(p.images) && p.images.length > 0
+            ? p.images[0]
+            : "https://via.placeholder.com/600x400?text=No+Image";
 
-          {/* Property Info */}
-          <h2 className="text-lg font-semibold">{prop.title}</h2>
-          <p className="text-gray-600">{prop.type} | {prop.district}</p>
+        const isFav = favorites.includes(p.id);
 
-          {/* Price */}
-          <p className="font-bold text-blue-600">
-            {prop.purpose === "buy"
-              ? `Sale: ${fmt(prop.price)}`
-              : `Rent: ${fmt(prop.rent_price)} / month`}
-          </p>
+        return (
+          <div
+            key={p.id}
+            className="bg-white rounded-lg shadow hover:shadow-lg transition cursor-pointer overflow-hidden"
+            onClick={() => setSelectedProperty(p)}
+          >
+            {/* IMAGE */}
+            <div className="relative">
+              <img
+                src={image}
+                alt={p.title || "Property"}
+                className="w-full h-48 object-cover"
+              />
 
-          {/* Optional Contact */}
-          {(prop.phone || prop.whatsapp) && (
-            <p className="text-gray-500 text-sm mt-1">
-              Contact: {prop.phone ? prop.phone : ""}{prop.phone && prop.whatsapp ? " / " : ""}{prop.whatsapp ? prop.whatsapp : ""}
-            </p>
-          )}
+              {/* FAVORITE BUTTON */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!currentUser) {
+                    alert("Please log in to save properties");
+                    return;
+                  }
+                  toggleFav(p.id);
+                }}
+                className="absolute top-2 right-2 bg-white rounded-full p-2 shadow"
+                title={currentUser ? "Save property" : "Login to save"}
+              >
+                {isFav ? "❤️" : "🤍"}
+              </button>
+            </div>
 
-          <p className="text-gray-500 text-sm mt-1">
-            Posted: {new Date(prop.date_posted).toLocaleString()}
-          </p>
+            {/* CONTENT */}
+            <div className="p-4 space-y-2">
+              <h3 className="text-lg font-semibold text-gray-800">
+                {p.title || "Untitled Property"}
+              </h3>
 
-          {/* Favorites */}
-          {currentUser && (
-            <button
-              onClick={() => toggleFav(prop.id)}
-              className={`mt-2 px-2 py-1 rounded text-sm ${
-                favorites.includes(prop.id)
-                  ? "bg-red-600 text-white"
-                  : "bg-gray-200 text-gray-800"
-              }`}
-            >
-              {favorites.includes(prop.id) ? "♥ Favorited" : "♡ Favorite"}
-            </button>
-          )}
-        </div>
-      ))}
+              <p className="text-sm text-gray-500">
+                {p.location || "Unknown location"}, {p.district || "Lesotho"}
+              </p>
+
+              {/* PRICE */}
+              <div className="text-blue-600 font-bold">
+                {p.purpose === "buy" && p.price > 0 && <span>{fmt(p.price)}</span>}
+                {p.purpose === "rent" && p.rent_price > 0 && (
+                  <span>{fmt(p.rent_price)} / month</span>
+                )}
+              </div>
+
+              {/* META */}
+              <div className="flex gap-4 text-sm text-gray-600">
+                {p.bedrooms > 0 && <span>🛏 {p.bedrooms}</span>}
+                {p.bathrooms > 0 && <span>🛁 {p.bathrooms}</span>}
+                {p.size > 0 && <span>📐 {p.size} m²</span>}
+              </div>
+
+              {/* DATE POSTED */}
+              {p.date_posted && (
+                <div className="text-xs text-gray-400">
+                  Posted on {new Date(p.date_posted).toLocaleDateString()}
+                </div>
+              )}
+
+              {/* AGENT */}
+              {p.agent_name && (
+                <div className="text-xs text-gray-400">Listed by {p.agent_name}</div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

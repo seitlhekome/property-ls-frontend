@@ -1,227 +1,203 @@
-// src/components/ListModal.jsx
 import React, { useState } from "react";
 
-export default function ListModal({
-  newProp,
-  setNewProp,
-  listPropBackend,
-  loading,
-  setShowListModal,
-}) {
-  const [imagePreviews, setImagePreviews] = useState([]);
-  const [imagesFiles, setImagesFiles] = useState([]);
-
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    setImagesFiles(files);
-    setImagePreviews(files.map((f) => URL.createObjectURL(f)));
-  };
+export default function ListModal({ newProp, setNewProp, listPropBackend, loading, setShowListModal }) {
+  const [imagesPreview, setImagesPreview] = useState([]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setNewProp((prev) => ({ ...prev, [name]: value }));
   };
 
-  const closeModal = () => {
-    setShowListModal(false);
-    setImagePreviews([]);
-    setImagesFiles([]);
-    setNewProp({
-      title: "",
-      price: "",
-      rent_price: "",
-      purpose: "buy",
-      type: "House",
-      district: "Maseru",
-      location: "",
-      bedrooms: "",
-      bathrooms: "",
-      size: "",
-      description: "",
-      images: [],
-      phone: "",
-      whatsapp: "",
-    });
+  const handleImages = (e) => {
+    const files = Array.from(e.target.files);
+    setNewProp((prev) => ({ ...prev, images: files }));
+    setImagesPreview(files.map((f) => URL.createObjectURL(f)));
   };
 
-  const handleSubmit = async () => {
-    if (!newProp.title || (!newProp.price && !newProp.rent_price) || imagesFiles.length === 0) {
-      return alert("Please fill in title, price/rent, and upload at least 1 image.");
-    }
-    await listPropBackend(newProp, imagesFiles);
-    closeModal();
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!newProp.title) return alert("Title is required");
+    if (!newProp.location) return alert("Location is required");
+
+    listPropBackend(newProp, newProp.images);
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-start overflow-auto p-4">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6 relative">
-        <button
-          onClick={closeModal}
-          className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 text-2xl font-bold"
-        >
-          &times;
-        </button>
-
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">List New Property</h2>
-
-        {/* Purpose selector: Buy / Rent */}
-        <select
-          name="purpose"
-          value={newProp.purpose}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        >
-          <option value="buy">Buy</option>
-          <option value="rent">Rent</option>
-        </select>
-
-        <input
-          type="text"
-          name="title"
-          placeholder="Property Title"
-          value={newProp.title}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        />
-
-        <input
-          type="number"
-          name="price"
-          placeholder="Sale Price (M)"
-          value={newProp.price}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        />
-
-        <input
-          type="number"
-          name="rent_price"
-          placeholder="Rent Price / month (M)"
-          value={newProp.rent_price}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        />
-
-        <select
-          name="type"
-          value={newProp.type}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        >
-          <option value="House">House</option>
-          <option value="Apartment">Apartment</option>
-          <option value="Land">Land</option>
-          <option value="Commercial">Commercial</option>
-        </select>
-
-        <select
-          name="district"
-          value={newProp.district}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        >
-          <option value="Maseru">Maseru</option>
-          <option value="Butha Buthe">Butha Buthe</option>
-          <option value="Leribe">Leribe</option>
-          <option value="Berea">Berea</option>
-          <option value="Mafeteng">Mafeteng</option>
-          <option value="Mohale's Hoek">Mohale's Hoek</option>
-          <option value="Quthing">Quthing</option>
-          <option value="Semonkong">Semonkong</option>
-          <option value="Thaba Tseka">Thaba Tseka</option>
-          <option value="Mantsonyane">Mantsonyane</option>
-          <option value="Qacha's Neck">Qacha's Neck</option>
-          <option value="Mokhotlong">Mokhotlong</option>
-        </select>
-
-        <input
-          type="text"
-          name="location"
-          placeholder="Location / Street"
-          value={newProp.location}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        />
-
-        <div className="flex gap-2 mb-3">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg w-full max-w-3xl overflow-y-auto max-h-[90vh]">
+        <h2 className="text-2xl font-bold mb-4">List New Property</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
           <input
-            type="number"
-            name="bedrooms"
-            placeholder="Bedrooms"
-            value={newProp.bedrooms}
+            type="text"
+            name="title"
+            placeholder="Title"
+            value={newProp.title}
             onChange={handleChange}
-            className="w-1/2 px-3 py-2 border rounded"
+            className="w-full border px-3 py-2 rounded"
+            required
           />
-          <input
-            type="number"
-            name="bathrooms"
-            placeholder="Bathrooms"
-            value={newProp.bathrooms}
-            onChange={handleChange}
-            className="w-1/2 px-3 py-2 border rounded"
-          />
-        </div>
 
-        <input
-          type="number"
-          name="size"
-          placeholder="Size (m²)"
-          value={newProp.size}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        />
-
-        <textarea
-          name="description"
-          placeholder="Description"
-          value={newProp.description}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        />
-
-        {/* Optional contact info */}
-        <input
-          type="text"
-          name="phone"
-          placeholder="Phone Number (Optional)"
-          value={newProp.phone}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        />
-        <input
-          type="text"
-          name="whatsapp"
-          placeholder="WhatsApp (Optional)"
-          value={newProp.whatsapp}
-          onChange={handleChange}
-          className="w-full mb-3 px-3 py-2 border rounded"
-        />
-
-        {/* Images */}
-        <div className="mb-3">
-          <label className="font-medium mb-1 block">Property Images</label>
-          <input type="file" multiple onChange={handleImageChange} className="mb-2" />
-          <div className="flex gap-2 flex-wrap mt-2">
-            {imagePreviews.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                alt={`Preview ${i + 1}`}
-                className="h-20 w-20 object-cover rounded border"
-              />
-            ))}
+          {/* Type & Purpose */}
+          <div className="flex gap-2">
+            <select name="type" value={newProp.type} onChange={handleChange} className="flex-1 border px-3 py-2 rounded">
+              <option>House</option>
+              <option>Apartment</option>
+              <option>Land</option>
+              <option>Commercial</option>
+            </select>
+            <select name="purpose" value={newProp.purpose} onChange={handleChange} className="flex-1 border px-3 py-2 rounded">
+              <option value="buy">Buy</option>
+              <option value="rent">Rent</option>
+            </select>
           </div>
-        </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={loading || imagesFiles.length === 0}
-          className={`w-full py-2 rounded text-white ${
-            loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-          }`}
-        >
-          {loading ? "Listing..." : "List Property"}
-        </button>
+          {/* District & Location */}
+          <div className="flex gap-2">
+            <select name="district" value={newProp.district} onChange={handleChange} className="flex-1 border px-3 py-2 rounded">
+              <option>Maseru</option>
+              <option>Butha Buthe</option>
+              <option>Leribe</option>
+              <option>Berea</option>
+              <option>Mafeteng</option>
+              <option>Mohale's Hoek</option>
+              <option>Quthing</option>
+              <option>Semonkong</option>
+              <option>Thaba Tseka</option>
+              <option>Mantsonyane</option>
+              <option>Qacha's Neck</option>
+              <option>Mokhotlong</option>
+            </select>
+            <input
+              type="text"
+              name="location"
+              placeholder="Location"
+              value={newProp.location}
+              onChange={handleChange}
+              className="flex-1 border px-3 py-2 rounded"
+              required
+            />
+          </div>
+
+          {/* Price & Rent Price */}
+          <div className="flex gap-2">
+            <input
+              type="number"
+              name="price"
+              placeholder="Price (Buy)"
+              value={newProp.price}
+              onChange={handleChange}
+              className="flex-1 border px-3 py-2 rounded"
+              min={0}
+            />
+            <input
+              type="number"
+              name="rent_price"
+              placeholder="Rent Price"
+              value={newProp.rent_price}
+              onChange={handleChange}
+              className="flex-1 border px-3 py-2 rounded"
+              min={0}
+            />
+          </div>
+
+          {/* Bedrooms, Bathrooms, Size */}
+          <div className="flex gap-2">
+            <input
+              type="number"
+              name="bedrooms"
+              placeholder="Bedrooms"
+              value={newProp.bedrooms}
+              onChange={handleChange}
+              className="flex-1 border px-3 py-2 rounded"
+              min={0}
+            />
+            <input
+              type="number"
+              name="bathrooms"
+              placeholder="Bathrooms"
+              value={newProp.bathrooms}
+              onChange={handleChange}
+              className="flex-1 border px-3 py-2 rounded"
+              min={0}
+            />
+            <input
+              type="number"
+              name="size"
+              placeholder="Size (m²)"
+              value={newProp.size}
+              onChange={handleChange}
+              className="flex-1 border px-3 py-2 rounded"
+              min={0}
+            />
+          </div>
+
+          {/* Phone & WhatsApp */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              name="phone"
+              placeholder="Phone Number"
+              value={newProp.phone}
+              onChange={handleChange}
+              className="flex-1 border px-3 py-2 rounded"
+            />
+            <input
+              type="text"
+              name="whatsapp"
+              placeholder="WhatsApp Number"
+              value={newProp.whatsapp}
+              onChange={handleChange}
+              className="flex-1 border px-3 py-2 rounded"
+            />
+          </div>
+
+          {/* Description */}
+          <textarea
+            name="description"
+            placeholder="Description"
+            value={newProp.description}
+            onChange={handleChange}
+            className="w-full border px-3 py-2 rounded"
+          />
+
+          {/* Images */}
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleImages}
+            className="w-full"
+          />
+
+          {/* Preview */}
+          {imagesPreview.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {imagesPreview.map((src, i) => (
+                <img key={i} src={src} alt="preview" className="w-20 h-20 object-cover rounded" />
+              ))}
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-2 mt-4">
+            <button
+              type="button"
+              onClick={() => setShowListModal(false)}
+              className="px-4 py-2 border rounded bg-gray-200 hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+            >
+              {loading ? "Listing..." : "List Property"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
