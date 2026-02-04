@@ -1,7 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-export default function ListModal({ newProp, setNewProp, listPropBackend, loading, setShowListModal }) {
+export default function ListModal({
+  newProp,
+  setNewProp,
+  listPropBackend,
+  loading,
+  setShowListModal,
+}) {
   const [imagesPreview, setImagesPreview] = useState([]);
+
+  // Initialize images preview if there are existing images
+  useEffect(() => {
+    if (newProp?.images && newProp.images.length > 0) {
+      setImagesPreview(
+        newProp.images.map((f) =>
+          typeof f === "string" ? f : URL.createObjectURL(f)
+        )
+      );
+    }
+  }, [newProp]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -19,6 +36,10 @@ export default function ListModal({ newProp, setNewProp, listPropBackend, loadin
 
     if (!newProp.title) return alert("Title is required");
     if (!newProp.location) return alert("Location is required");
+    if (newProp.purpose === "buy" && !newProp.price)
+      return alert("Price is required");
+    if (newProp.purpose === "rent" && !newProp.rent_price)
+      return alert("Rent price is required");
 
     listPropBackend(newProp, newProp.images);
   };
@@ -29,153 +50,215 @@ export default function ListModal({ newProp, setNewProp, listPropBackend, loadin
         <h2 className="text-2xl font-bold mb-4">List New Property</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
-          <input
-            type="text"
-            name="title"
-            placeholder="Title"
-            value={newProp.title}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-            required
-          />
-
-          {/* Type & Purpose */}
-          <div className="flex gap-2">
-            <select name="type" value={newProp.type} onChange={handleChange} className="flex-1 border px-3 py-2 rounded">
-              <option>House</option>
-              <option>Apartment</option>
-              <option>Land</option>
-              <option>Commercial</option>
-            </select>
-            <select name="purpose" value={newProp.purpose} onChange={handleChange} className="flex-1 border px-3 py-2 rounded">
-              <option value="buy">Buy</option>
-              <option value="rent">Rent</option>
-            </select>
-          </div>
-
-          {/* District & Location */}
-          <div className="flex gap-2">
-            <select name="district" value={newProp.district} onChange={handleChange} className="flex-1 border px-3 py-2 rounded">
-              <option>Maseru</option>
-              <option>Butha Buthe</option>
-              <option>Leribe</option>
-              <option>Berea</option>
-              <option>Mafeteng</option>
-              <option>Mohale's Hoek</option>
-              <option>Quthing</option>
-              <option>Semonkong</option>
-              <option>Thaba Tseka</option>
-              <option>Mantsonyane</option>
-              <option>Qacha's Neck</option>
-              <option>Mokhotlong</option>
-            </select>
+          <div>
+            <label className="font-semibold mb-1 block">Title</label>
             <input
               type="text"
-              name="location"
-              placeholder="Location"
-              value={newProp.location}
+              name="title"
+              value={newProp.title}
               onChange={handleChange}
-              className="flex-1 border px-3 py-2 rounded"
+              className="w-full border px-3 py-2 rounded"
+              placeholder="Enter property title"
               required
             />
           </div>
 
-          {/* Price & Rent Price */}
+          {/* Type & Purpose */}
           <div className="flex gap-2">
-            <input
-              type="number"
-              name="price"
-              placeholder="Price (Buy)"
-              value={newProp.price}
-              onChange={handleChange}
-              className="flex-1 border px-3 py-2 rounded"
-              min={0}
-            />
-            <input
-              type="number"
-              name="rent_price"
-              placeholder="Rent Price"
-              value={newProp.rent_price}
-              onChange={handleChange}
-              className="flex-1 border px-3 py-2 rounded"
-              min={0}
-            />
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Property Type</label>
+              <select
+                name="type"
+                value={newProp.type}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+              >
+                <option>House</option>
+                <option>Land</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Purpose</label>
+              <select
+                name="purpose"
+                value={newProp.purpose}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+              >
+                <option value="buy">Buy</option>
+                <option value="rent">Rent</option>
+              </select>
+            </div>
           </div>
 
-          {/* Bedrooms, Bathrooms, Size */}
+          {/* District & Location */}
           <div className="flex gap-2">
-            <input
-              type="number"
-              name="bedrooms"
-              placeholder="Bedrooms"
-              value={newProp.bedrooms}
-              onChange={handleChange}
-              className="flex-1 border px-3 py-2 rounded"
-              min={0}
-            />
-            <input
-              type="number"
-              name="bathrooms"
-              placeholder="Bathrooms"
-              value={newProp.bathrooms}
-              onChange={handleChange}
-              className="flex-1 border px-3 py-2 rounded"
-              min={0}
-            />
-            <input
-              type="number"
-              name="size"
-              placeholder="Size (m²)"
-              value={newProp.size}
-              onChange={handleChange}
-              className="flex-1 border px-3 py-2 rounded"
-              min={0}
-            />
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">District</label>
+              <select
+                name="district"
+                value={newProp.district}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+              >
+                <option>Maseru</option>
+                <option>Butha Buthe</option>
+                <option>Leribe</option>
+                <option>Berea</option>
+                <option>Mafeteng</option>
+                <option>Mohale's Hoek</option>
+                <option>Quthing</option>
+                <option>Semonkong</option>
+                <option>Thaba Tseka</option>
+                <option>Mantsonyane</option>
+                <option>Qacha's Neck</option>
+                <option>Mokhotlong</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Location</label>
+              <input
+                type="text"
+                name="location"
+                value={newProp.location}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                placeholder="Enter street/area"
+                required
+              />
+            </div>
           </div>
+
+          {/* Price or Rent Price */}
+          {newProp.purpose === "buy" && (
+            <div>
+              <label className="font-semibold mb-1 block">Price (Buy)</label>
+              <input
+                type="number"
+                name="price"
+                value={newProp.price}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                min={0}
+                placeholder="Enter price in M"
+              />
+            </div>
+          )}
+          {newProp.purpose === "rent" && (
+            <div>
+              <label className="font-semibold mb-1 block">Rent Price</label>
+              <input
+                type="number"
+                name="rent_price"
+                value={newProp.rent_price}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                min={0}
+                placeholder="Enter monthly rent in M"
+              />
+            </div>
+          )}
+
+          {/* Conditional fields based on type */}
+          {newProp.type === "House" && (
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="font-semibold mb-1 block">Bedrooms</label>
+                <input
+                  type="number"
+                  name="bedrooms"
+                  value={newProp.bedrooms}
+                  onChange={handleChange}
+                  className="w-full border px-3 py-2 rounded"
+                  min={0}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="font-semibold mb-1 block">Bathrooms</label>
+                <input
+                  type="number"
+                  name="bathrooms"
+                  value={newProp.bathrooms}
+                  onChange={handleChange}
+                  className="w-full border px-3 py-2 rounded"
+                  min={0}
+                />
+              </div>
+            </div>
+          )}
+
+          {newProp.type === "Land" && (
+            <div>
+              <label className="font-semibold mb-1 block">Size (m²)</label>
+              <input
+                type="number"
+                name="size"
+                value={newProp.size}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                min={0}
+              />
+            </div>
+          )}
 
           {/* Phone & WhatsApp */}
           <div className="flex gap-2">
-            <input
-              type="text"
-              name="phone"
-              placeholder="Phone Number"
-              value={newProp.phone}
-              onChange={handleChange}
-              className="flex-1 border px-3 py-2 rounded"
-            />
-            <input
-              type="text"
-              name="whatsapp"
-              placeholder="WhatsApp Number"
-              value={newProp.whatsapp}
-              onChange={handleChange}
-              className="flex-1 border px-3 py-2 rounded"
-            />
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Phone Number</label>
+              <input
+                type="text"
+                name="phone"
+                value={newProp.phone}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">WhatsApp Number</label>
+              <input
+                type="text"
+                name="whatsapp"
+                value={newProp.whatsapp}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+              />
+            </div>
           </div>
 
           {/* Description */}
-          <textarea
-            name="description"
-            placeholder="Description"
-            value={newProp.description}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          />
+          <div>
+            <label className="font-semibold mb-1 block">Description</label>
+            <textarea
+              name="description"
+              value={newProp.description}
+              onChange={handleChange}
+              className="w-full border px-3 py-2 rounded"
+              placeholder="Write a brief description of the property"
+            />
+          </div>
 
           {/* Images */}
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleImages}
-            className="w-full"
-          />
+          <div>
+            <label className="font-semibold mb-1 block">Images</label>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImages}
+              className="w-full"
+            />
+          </div>
 
           {/* Preview */}
           {imagesPreview.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {imagesPreview.map((src, i) => (
-                <img key={i} src={src} alt="preview" className="w-20 h-20 object-cover rounded" />
+                <img
+                  key={i}
+                  src={src}
+                  alt="preview"
+                  className="w-20 h-20 object-cover rounded"
+                />
               ))}
             </div>
           )}
