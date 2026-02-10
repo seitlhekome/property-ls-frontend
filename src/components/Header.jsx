@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Header({
   currentUser,
@@ -10,7 +11,10 @@ export default function Header({
   setActiveTab,
   searchQuery,
   setSearchQuery,
+  filteredProperties, // receive filtered properties from App
 }) {
+  const navigate = useNavigate(); // use navigate internally
+
   return (
     <header className="sticky top-0 z-50 bg-white shadow">
       <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -26,22 +30,14 @@ export default function Header({
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab && setActiveTab("buy")}
-              className={`px-4 py-2 rounded ${
-                activeTab === "buy"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
+              className={`px-4 py-2 rounded ${activeTab === "buy" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
             >
               Buy
             </button>
 
             <button
               onClick={() => setActiveTab && setActiveTab("rent")}
-              className={`px-4 py-2 rounded ${
-                activeTab === "rent"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
+              className={`px-4 py-2 rounded ${activeTab === "rent" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
             >
               Rent
             </button>
@@ -63,6 +59,16 @@ export default function Header({
             className="px-3 py-2 bg-blue-600 text-white rounded"
           >
             Calculator
+          </button>
+
+          {/* Map button: pass current filtered properties */}
+          <button
+            onClick={() =>
+              navigate("/map", { state: { properties: filteredProperties } })
+            }
+            className="px-3 py-2 bg-blue-600 text-white rounded"
+          >
+            Map
           </button>
 
           {currentUser ? (

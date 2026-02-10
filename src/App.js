@@ -10,6 +10,7 @@ import AuthModal from "./components/AuthModal";
 import ListModal from "./components/ListModal";
 import CalculatorModal from "./components/CalculatorModal";
 import Footer from "./components/Footer";
+import PropertyMap from "./components/PropertyMap";
 
 const API = "http://localhost:3001";
 
@@ -17,7 +18,7 @@ export default function App() {
   const navigate = useNavigate();
 
   // ================= UI STATE =================
-  const [activeTab, setActiveTab] = useState("buy"); // "buy" or "rent"
+  const [activeTab, setActiveTab] = useState("buy");
   const [searchQuery, setSearchQuery] = useState("");
   const [showCalculator, setShowCalculator] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -55,13 +56,14 @@ export default function App() {
     images: [],
     phone: "",
     whatsapp: "",
+    lat: "",  // Added
+    lng: "",  // Added
   });
 
   // ================= LOAD USER =================
   useEffect(() => {
     const u = localStorage.getItem("user");
     const t = localStorage.getItem("token");
-
     if (u && t) {
       try {
         setCurrentUser(JSON.parse(u));
@@ -82,6 +84,8 @@ export default function App() {
         images: p.images || [],
         phone: p.phone || "",
         whatsapp: p.whatsapp || "",
+        lat: p.lat != null ? Number(p.lat) : null,
+        lng: p.lng != null ? Number(p.lng) : null,
       }));
       setProperties(formatted);
     } catch (err) {
@@ -151,10 +155,20 @@ export default function App() {
     try {
       const fd = new FormData();
 
+      // Append images
       imageFiles.forEach((f) => fd.append("images", f));
 
+      // Append all other fields
       Object.keys(propData).forEach((k) => {
-        if (k !== "images") fd.append(k, propData[k] || "");
+        if (k === "images") return;
+
+        // Handle lat/lng: only append if valid number
+        if (k === "lat" || k === "lng") {
+          const val = parseFloat(propData[k]);
+          if (!isNaN(val)) fd.append(k, val);
+        } else {
+          fd.append(k, propData[k] || "");
+        }
       });
 
       await axios.post(`${API}/api/properties`, fd, {
@@ -183,12 +197,10 @@ export default function App() {
   const filteredProperties = properties.filter((p) => {
     const purpose = p.purpose || "buy";
     const matchesTab = purpose === activeTab;
-
     const matchesSearch =
       !searchQuery ||
       p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.location?.toLowerCase().includes(searchQuery.toLowerCase());
-
     return matchesTab && matchesSearch;
   });
 
@@ -205,6 +217,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
+        filteredProperties={filteredProperties}
       />
 
       <Routes>
@@ -221,9 +234,19 @@ export default function App() {
                 );
               }}
               fmt={fmt}
-              setSelectedProperty={(p) => navigate(`/property/${p.id}`)}
+              setSelectedProperty={(p) => navigate(`/property/${p.id}`, { state: { selectedProperty: p } })}
               currentUser={currentUser}
               loading={loading}
+            />
+          }
+        />
+
+        <Route
+          path="/map"
+          element={
+            <PropertyMap
+              properties={filteredProperties}
+              onBack={() => navigate("/")}
             />
           }
         />

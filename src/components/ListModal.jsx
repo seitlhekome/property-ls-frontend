@@ -8,6 +8,7 @@ export default function ListModal({
   setShowListModal,
 }) {
   const [imagesPreview, setImagesPreview] = useState([]);
+  const [locationStatus, setLocationStatus] = useState("");
 
   // Initialize images preview if there are existing images
   useEffect(() => {
@@ -22,7 +23,16 @@ export default function ListModal({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setNewProp((prev) => ({ ...prev, [name]: value }));
+
+    // Ensure lat/lng remain numbers
+    if (name === "lat" || name === "lng") {
+      setNewProp((prev) => ({
+        ...prev,
+        [name]: value === "" ? null : Number(value),
+      }));
+    } else {
+      setNewProp((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleImages = (e) => {
@@ -35,19 +45,54 @@ export default function ListModal({
     e.preventDefault();
 
     if (!newProp.title) return alert("Title is required");
+    if (!newProp.district) return alert("District is required");
     if (!newProp.location) return alert("Location is required");
     if (newProp.purpose === "buy" && !newProp.price)
       return alert("Price is required");
     if (newProp.purpose === "rent" && !newProp.rent_price)
       return alert("Rent price is required");
 
-    listPropBackend(newProp, newProp.images);
+    // Pass lat/lng as numbers if provided
+    const propData = {
+      ...newProp,
+      lat: newProp.lat ? Number(newProp.lat) : null,
+      lng: newProp.lng ? Number(newProp.lng) : null,
+    };
+
+    listPropBackend(propData, newProp.images);
+  };
+
+  // Manual location trigger
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your device");
+      return;
+    }
+
+    setLocationStatus("Fetching your location...");
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setNewProp((prev) => ({
+          ...prev,
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6)),
+        }));
+        setLocationStatus("Location captured ✔");
+      },
+      () => {
+        setLocationStatus("Unable to access your location");
+        alert("Unable to access your location");
+      },
+      { enableHighAccuracy: true }
+    );
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg w-full max-w-3xl overflow-y-auto max-h-[90vh]">
         <h2 className="text-2xl font-bold mb-4">List New Property</h2>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
           <div>
@@ -77,6 +122,7 @@ export default function ListModal({
                 <option>Land</option>
               </select>
             </div>
+
             <div className="flex-1">
               <label className="font-semibold mb-1 block">Purpose</label>
               <select
@@ -115,21 +161,62 @@ export default function ListModal({
                 <option>Mokhotlong</option>
               </select>
             </div>
+
             <div className="flex-1">
-              <label className="font-semibold mb-1 block">Location</label>
+              <label className="font-semibold mb-1 block">Street / Area</label>
               <input
                 type="text"
                 name="location"
                 value={newProp.location}
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
-                placeholder="Enter street/area"
                 required
               />
             </div>
           </div>
 
-          {/* Price or Rent Price */}
+          {/* Coordinates */}
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Latitude (Optional)</label>
+              <input
+                type="number"
+                name="lat"
+                value={newProp.lat ?? ""}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                step="any"
+                placeholder="Optional"
+              />
+            </div>
+
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Longitude (Optional)</label>
+              <input
+                type="number"
+                name="lng"
+                value={newProp.lng ?? ""}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                step="any"
+                placeholder="Optional"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={useMyLocation}
+              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Use My Location
+            </button>
+          </div>
+
+          {locationStatus && (
+            <p className="text-sm text-gray-600">{locationStatus}</p>
+          )}
+
+          {/* Price / Rent */}
           {newProp.purpose === "buy" && (
             <div>
               <label className="font-semibold mb-1 block">Price (Buy)</label>
@@ -140,10 +227,10 @@ export default function ListModal({
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
                 min={0}
-                placeholder="Enter price in M"
               />
             </div>
           )}
+
           {newProp.purpose === "rent" && (
             <div>
               <label className="font-semibold mb-1 block">Rent Price</label>
@@ -154,12 +241,11 @@ export default function ListModal({
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
                 min={0}
-                placeholder="Enter monthly rent in M"
               />
             </div>
           )}
 
-          {/* Conditional fields based on type */}
+          {/* Bedrooms / Bathrooms */}
           {newProp.type === "House" && (
             <div className="flex gap-2">
               <div className="flex-1">
@@ -201,7 +287,7 @@ export default function ListModal({
             </div>
           )}
 
-          {/* Phone & WhatsApp */}
+          {/* Contact Numbers */}
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="font-semibold mb-1 block">Phone Number</label>
@@ -225,18 +311,6 @@ export default function ListModal({
             </div>
           </div>
 
-          {/* Description */}
-          <div>
-            <label className="font-semibold mb-1 block">Description</label>
-            <textarea
-              name="description"
-              value={newProp.description}
-              onChange={handleChange}
-              className="w-full border px-3 py-2 rounded"
-              placeholder="Write a brief description of the property"
-            />
-          </div>
-
           {/* Images */}
           <div>
             <label className="font-semibold mb-1 block">Images</label>
@@ -245,13 +319,11 @@ export default function ListModal({
               multiple
               accept="image/*"
               onChange={handleImages}
-              className="w-full"
             />
           </div>
 
-          {/* Preview */}
           {imagesPreview.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2">
               {imagesPreview.map((src, i) => (
                 <img
                   key={i}
@@ -264,18 +336,18 @@ export default function ListModal({
           )}
 
           {/* Buttons */}
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setShowListModal(false)}
-              className="px-4 py-2 border rounded bg-gray-200 hover:bg-gray-300"
+              className="px-4 py-2 border rounded"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded"
             >
               {loading ? "Listing..." : "List Property"}
             </button>
