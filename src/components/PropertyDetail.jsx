@@ -2,32 +2,34 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const API = "http://localhost:3001";
+const API = "https://property-ls-backend-production.up.railway.app"; // live backend
 
-export default function PropertyDetail({
-  favorites = [],
-  toggleFav,
-  currentUser,
-}) {
+export default function PropertyDetail({ favorites = [], toggleFav, currentUser }) {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [mainImageIndex, setMainImageIndex] = useState(0);
-  const [editing, setEditing] = useState(false);
-  const [editData, setEditData] = useState({});
 
   useEffect(() => {
     const fetchProperty = async () => {
       try {
-        const res = await axios.get(`${API}/api/properties`);
-        const found = res.data.find((p) => String(p.id) === String(id));
-        setProperty(found || null);
-        if (found) setEditData({ ...found });
+        // Fetch single property by ID if backend supports it
+        const res = await axios.get(`${API}/api/properties/${id}`);
+        setProperty(res.data);
       } catch (err) {
         console.error("Failed to load property:", err);
-        setProperty(null);
+
+        // Fallback: fetch all and find
+        try {
+          const all = await axios.get(`${API}/api/properties`);
+          const found = all.data.find((p) => String(p.id) === String(id));
+          setProperty(found || null);
+        } catch (err2) {
+          console.error("Fallback fetch failed:", err2);
+          setProperty(null);
+        }
       }
       setLoading(false);
     };
@@ -96,9 +98,7 @@ export default function PropertyDetail({
                 alt=""
                 onClick={() => setMainImageIndex(i)}
                 className={`h-20 w-24 object-cover rounded cursor-pointer border-2 ${
-                  i === mainImageIndex
-                    ? "border-blue-600"
-                    : "border-transparent"
+                  i === mainImageIndex ? "border-blue-600" : "border-transparent"
                 }`}
               />
             ))}
@@ -144,51 +144,46 @@ export default function PropertyDetail({
         </button>
       </div>
 
-   {/* CONTACT CARD */}
-<div className="lg:sticky lg:top-24 h-fit rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-  <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-4">
-    Contact Agent
-  </h3>
+      {/* CONTACT CARD */}
+      <div className="lg:sticky lg:top-24 h-fit rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-4">
+          Contact Agent
+        </h3>
 
-  {/* AGENT NAME */}
-  {property.agent_name && (
-    <p className="text-sm font-semibold text-gray-900 mb-3">
-      {property.agent_name}
-    </p>
-  )}
+        {property.agent_name && (
+          <p className="text-sm font-semibold text-gray-900 mb-3">
+            {property.agent_name}
+          </p>
+        )}
 
-  {/* ACTION BUTTONS */}
-  <div className="flex flex-col gap-2">
-    {/* WHATSAPP */}
-    {whatsappNumber && (
-      <a
-        href={`https://wa.me/${whatsappNumber}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-center gap-2 rounded-md border border-green-600 bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700"
-      >
-        WhatsApp
-      </a>
-    )}
+        <div className="flex flex-col gap-2">
+          {whatsappNumber && (
+            <a
+              href={`https://wa.me/${whatsappNumber}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 rounded-md border border-green-600 bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700"
+            >
+              WhatsApp
+            </a>
+          )}
 
-    {/* CALL */}
-    {property.phone && (
-      <a
-        href={`tel:${property.phone}`}
-        className="flex items-center justify-center gap-2 rounded-md border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
-      >
-        Call {property.phone}
-      </a>
-    )}
-  </div>
+          {property.phone && (
+            <a
+              href={`tel:${property.phone}`}
+              className="flex items-center justify-center gap-2 rounded-md border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+            >
+              Call {property.phone}
+            </a>
+          )}
+        </div>
 
-  {/* EMPTY STATE */}
-  {!property.phone && !whatsappNumber && (
-    <p className="mt-3 text-xs text-gray-400">
-      No contact details provided.
-    </p>
-  )}
-</div>
+        {!property.phone && !whatsappNumber && (
+          <p className="mt-3 text-xs text-gray-400">
+            No contact details provided.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

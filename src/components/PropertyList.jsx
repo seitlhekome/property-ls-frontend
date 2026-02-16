@@ -32,9 +32,9 @@ export default function PropertyList({
 
   // Get coordinates safely
   const getLatLng = (property) => {
-    if (property.lat != null && property.lng != null) {
-      return [property.lat, property.lng];
-    }
+    const lat = property.lat ?? property.latitude ?? null;
+    const lng = property.lng ?? property.longitude ?? null;
+    if (lat != null && lng != null) return [lat, lng];
     return null;
   };
 

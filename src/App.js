@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 
 import Header from "./components/Header";
@@ -12,10 +12,12 @@ import CalculatorModal from "./components/CalculatorModal";
 import Footer from "./components/Footer";
 import PropertyMap from "./components/PropertyMap";
 
-const API = "http://localhost:3001";
+// ✅ Live backend URL
+const API = "https://property-ls-backend-production.up.railway.app";
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // ================= UI STATE =================
   const [activeTab, setActiveTab] = useState("buy");
@@ -56,8 +58,8 @@ export default function App() {
     images: [],
     phone: "",
     whatsapp: "",
-    lat: "",  // Added
-    lng: "",  // Added
+    lat: "",
+    lng: "",
   });
 
   // ================= LOAD USER =================
@@ -100,8 +102,7 @@ export default function App() {
 
   // ================= AUTH =================
   const handleLogin = async () => {
-    if (!authForm.email || !authForm.password)
-      return alert("Enter email and password");
+    if (!authForm.email || !authForm.password) return alert("Enter email and password");
 
     setLoading(true);
     try {
@@ -154,21 +155,13 @@ export default function App() {
     setLoading(true);
     try {
       const fd = new FormData();
-
-      // Append images
       imageFiles.forEach((f) => fd.append("images", f));
-
-      // Append all other fields
       Object.keys(propData).forEach((k) => {
         if (k === "images") return;
-
-        // Handle lat/lng: only append if valid number
         if (k === "lat" || k === "lng") {
           const val = parseFloat(propData[k]);
           if (!isNaN(val)) fd.append(k, val);
-        } else {
-          fd.append(k, propData[k] || "");
-        }
+        } else fd.append(k, propData[k] || "");
       });
 
       await axios.post(`${API}/api/properties`, fd, {
@@ -234,7 +227,9 @@ export default function App() {
                 );
               }}
               fmt={fmt}
-              setSelectedProperty={(p) => navigate(`/property/${p.id}`, { state: { selectedProperty: p } })}
+              setSelectedProperty={(p) =>
+                navigate(`/property/${p.id}`, { state: { selectedProperty: p } })
+              }
               currentUser={currentUser}
               loading={loading}
             />
