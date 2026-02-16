@@ -12,8 +12,7 @@ import CalculatorModal from "./components/CalculatorModal";
 import Footer from "./components/Footer";
 import PropertyMap from "./components/PropertyMap";
 
-// ✅ Live backend URL
-const API = "https://property-ls-backend-production.up.railway.app";
+import { API_URL } from "./config"; // ✅ use API_URL from config.js
 
 export default function App() {
   const navigate = useNavigate();
@@ -79,7 +78,7 @@ export default function App() {
   const fetchProperties = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/api/properties`);
+      const res = await axios.get(`${API_URL}/properties`);
       const formatted = res.data.map((p) => ({
         ...p,
         purpose: p.purpose || "buy",
@@ -102,11 +101,12 @@ export default function App() {
 
   // ================= AUTH =================
   const handleLogin = async () => {
-    if (!authForm.email || !authForm.password) return alert("Enter email and password");
+    if (!authForm.email || !authForm.password)
+      throw new Error("Enter email and password");
 
     setLoading(true);
     try {
-      const res = await axios.post(`${API}/api/auth/login`, {
+      const res = await axios.post(`${API_URL}/auth/login`, {
         email: authForm.email,
         password: authForm.password,
       });
@@ -120,18 +120,19 @@ export default function App() {
 
       if (res.data.role === "agent") navigate("/agent/dashboard");
     } catch (err) {
-      alert(err.response?.data?.error || "Login failed");
+      throw new Error(err.response?.data?.error || "Login failed");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSignup = async () => {
     if (!authForm.name || !authForm.email || !authForm.password)
-      return alert("Fill all required fields");
+      throw new Error("Fill all required fields");
 
     setLoading(true);
     try {
-      const res = await axios.post(`${API}/api/auth/signup`, authForm);
+      const res = await axios.post(`${API_URL}/auth/signup`, authForm);
 
       setCurrentUser(res.data);
       localStorage.setItem("user", JSON.stringify(res.data));
@@ -142,9 +143,10 @@ export default function App() {
 
       if (res.data.role === "agent") navigate("/agent/dashboard");
     } catch (err) {
-      alert(err.response?.data?.error || "Signup failed");
+      throw new Error(err.response?.data?.error || "Signup failed");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // ================= LIST PROPERTY =================
@@ -164,7 +166,7 @@ export default function App() {
         } else fd.append(k, propData[k] || "");
       });
 
-      await axios.post(`${API}/api/properties`, fd, {
+      await axios.post(`${API_URL}/properties`, fd, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

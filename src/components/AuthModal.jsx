@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function AuthModal({
   authIsSignup,
@@ -10,11 +10,19 @@ export default function AuthModal({
   loading,
   setShowAuthModal,
 }) {
-  const handleSubmit = () => {
-    if (authIsSignup) {
-      signup(authForm);
-    } else {
-      login(authForm);
+  const [errorMsg, setErrorMsg] = useState(""); // ✅ store error messages
+
+  const handleSubmit = async () => {
+    setErrorMsg(""); // reset previous error
+    try {
+      if (authIsSignup) {
+        await signup(authForm); // wait for signup
+      } else {
+        await login(authForm); // wait for login
+      }
+      setShowAuthModal(false); // close modal on success
+    } catch (err) {
+      setErrorMsg(err.message || "Something went wrong"); // display error inside modal
     }
   };
 
@@ -31,6 +39,10 @@ export default function AuthModal({
         <h2 className="text-2xl font-bold mb-4 text-gray-800">
           {authIsSignup ? "Create Account" : "Sign In"}
         </h2>
+
+        {errorMsg && (
+          <div className="mb-3 text-red-600 font-medium">{errorMsg}</div>
+        )}
 
         {authIsSignup && (
           <input
@@ -94,7 +106,9 @@ export default function AuthModal({
           onClick={handleSubmit}
           disabled={loading}
           className={`w-full py-2 rounded text-white ${
-            loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+            loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
           {loading
@@ -106,7 +120,10 @@ export default function AuthModal({
 
         <div className="mt-4 text-center">
           <button
-            onClick={() => setAuthIsSignup(!authIsSignup)}
+            onClick={() => {
+              setAuthIsSignup(!authIsSignup);
+              setErrorMsg(""); // clear errors when switching
+            }}
             className="text-blue-600 hover:underline"
           >
             {authIsSignup
