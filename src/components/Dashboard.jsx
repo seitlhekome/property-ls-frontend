@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import ListModal from "./ListModal";
 
-const API = "http://localhost:3001";
+const API = import.meta.env.VITE_API_URL;
 
 export default function Dashboard({ currentUser, setShowListModal }) {
   const [myProperties, setMyProperties] = useState([]);
