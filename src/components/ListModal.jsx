@@ -6,6 +6,7 @@ export default function ListModal({
   listPropBackend,
   loading,
   setShowListModal,
+  currentUser, // ✅ receive currentUser for agent_id
 }) {
   const [imagesPreview, setImagesPreview] = useState([]);
   const [locationStatus, setLocationStatus] = useState("");
@@ -52,11 +53,12 @@ export default function ListModal({
     if (newProp.purpose === "rent" && !newProp.rent_price)
       return alert("Rent price is required");
 
-    // Pass lat/lng as numbers if provided
+    // Pass lat/lng as numbers and include agent_id
     const propData = {
       ...newProp,
       lat: newProp.lat ? Number(newProp.lat) : null,
       lng: newProp.lng ? Number(newProp.lng) : null,
+      agent_id: currentUser?.id || null, // ✅ attach agent_id
     };
 
     listPropBackend(propData, newProp.images);

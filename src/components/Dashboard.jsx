@@ -4,13 +4,9 @@ import ListModal from "./ListModal";
 
 const API = "http://localhost:3001";
 
-export default function Dashboard({
-  currentUser,
-  setShowListModal,
-  fetchProperties,
-  properties = [],
-}) {
+export default function Dashboard({ currentUser, setShowListModal }) {
   const [myProperties, setMyProperties] = useState([]);
+  const [loadingProps, setLoadingProps] = useState(false);
 
   // Editing state
   const [editProp, setEditProp] = useState(null);
@@ -18,9 +14,27 @@ export default function Dashboard({
 
   const token = localStorage.getItem("token");
 
+  // ================= FETCH PROPERTIES =================
+  const fetchProperties = async () => {
+    if (!currentUser?.id) return;
+
+    setLoadingProps(true);
+    try {
+      const res = await axios.get(`${API}/api/properties/agent/${currentUser.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMyProperties(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Fetch properties failed:", err);
+      alert("Failed to load properties");
+    } finally {
+      setLoadingProps(false);
+    }
+  };
+
   useEffect(() => {
-    setMyProperties(Array.isArray(properties) ? properties : []);
-  }, [properties]);
+    fetchProperties();
+  }, [currentUser]);
 
   // ================= DELETE PROPERTY =================
   const handleDelete = async (prop) => {
@@ -32,7 +46,6 @@ export default function Dashboard({
     }
 
     if (!window.confirm("Are you sure you want to delete this property?")) return;
-
     if (!token) {
       alert("You must be logged in");
       return;
@@ -44,18 +57,10 @@ export default function Dashboard({
       });
 
       // ✅ Update UI immediately
-      setMyProperties((prev) =>
-        prev.filter((p) => (p._id || p.id) !== propId)
-      );
-
-      fetchProperties();
-
-      // ✅ Correct success message
+      setMyProperties((prev) => prev.filter((p) => (p._id || p.id) !== propId));
       alert("Property deleted successfully");
     } catch (err) {
       console.error("Delete failed:", err);
-
-      // Only show error if backend actually failed
       if (err.response?.status !== 204) {
         alert(err.response?.data?.error || "Failed to delete property");
       }
@@ -85,12 +90,13 @@ export default function Dashboard({
         }
       });
 
+      // Ensure agent_id is always included
+      formData.append("agent_id", currentUser.id);
+
       await axios.put(
         `${API}/api/properties/${propData._id || propData.id}`,
         formData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       alert("Property updated successfully");
@@ -119,7 +125,9 @@ export default function Dashboard({
         </button>
       </div>
 
-      {myProperties.length === 0 ? (
+      {loadingProps ? (
+        <p>Loading properties...</p>
+      ) : myProperties.length === 0 ? (
         <p>No properties listed yet.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -158,13 +166,10 @@ export default function Dashboard({
                   </p>
                 )}
 
-                {/* Date posted */}
                 <p className="text-gray-500 text-sm mt-1">
                   Posted:{" "}
                   {prop.createdAt || prop.date_posted
-                    ? new Date(
-                        prop.createdAt || prop.date_posted
-                      ).toLocaleDateString()
+                    ? new Date(prop.createdAt || prop.date_posted).toLocaleDateString()
                     : "—"}
                 </p>
 
@@ -195,6 +200,7 @@ export default function Dashboard({
           setNewProp={setEditProp}
           listPropBackend={updateProp}
           setShowListModal={setShowEditModal}
+          currentUser={currentUser} // ✅ Pass currentUser for agent_id
         />
       )}
     </div>
