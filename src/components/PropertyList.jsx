@@ -15,7 +15,7 @@ export default function PropertyList({
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto p-6 text-center text-gray-500">
-        Loading properties...
+        Loading properties....
       </div>
     );
   }
