@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 
@@ -12,7 +12,7 @@ import CalculatorModal from "./components/CalculatorModal";
 import Footer from "./components/Footer";
 import PropertyMap from "./components/PropertyMap";
 
-import { API_URL } from "./config"; // ✅ use API_URL from config.js
+import { API_URL } from "./config";
 
 export default function App() {
   const navigate = useNavigate();
@@ -61,65 +61,126 @@ export default function App() {
     lng: "",
   });
 
+  // ================= DEBUG =================
+  console.log("API_URL =", API_URL);
+  console.log("VITE_API_URL =", import.meta.env.VITE_API_URL);
+  console.log("DEV =", import.meta.env.DEV);
+  console.log("Current route =", location.pathname);
+
+  // ================= HELPERS =================
+  const fmt = (v) => `M ${Number(v || 0).toLocaleString()}`;
+
+  const normalizeProperty = (p) => ({
+    ...p,
+    id: p.id || p._id,
+    agent_id: p.agent_id || p.agentId || p.user_id || p.userId,
+    purpose: p.purpose || "buy",
+    images: Array.isArray(p.images) ? p.images : [],
+    phone: p.phone || "",
+    whatsapp: p.whatsapp || "",
+    lat: p.lat != null && p.lat !== "" ? Number(p.lat) : null,
+    lng: p.lng != null && p.lng !== "" ? Number(p.lng) : null,
+  });
+
+  const toggleFav = (id) => {
+    if (!currentUser) {
+      alert("Login to favorite");
+      return;
+    }
+
+    setFavorites((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const getCurrentUserId = () => currentUser?.id || currentUser?._id;
+
   // ================= LOAD USER =================
   useEffect(() => {
     const u = localStorage.getItem("user");
     const t = localStorage.getItem("token");
+
     if (u && t) {
       try {
         setCurrentUser(JSON.parse(u));
-      } catch {
+      } catch (error) {
+        console.error("Failed to parse stored user:", error);
         localStorage.clear();
       }
     }
   }, []);
 
   // ================= FETCH PROPERTIES =================
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     setLoading(true);
+
     try {
-      const res = await axios.get(`${API_URL}/properties`);
-      const formatted = res.data.map((p) => ({
-        ...p,
-        purpose: p.purpose || "buy",
-        images: p.images || [],
-        phone: p.phone || "",
-        whatsapp: p.whatsapp || "",
-        lat: p.lat != null ? Number(p.lat) : null,
-        lng: p.lng != null ? Number(p.lng) : null,
-      }));
+      const url = `${API_URL}/properties`;
+      console.log("Fetching properties from:", url);
+
+      const res = await axios.get(url, {
+        timeout: 15000,
+      });
+
+      console.log("Properties response:", res.data);
+
+      const formatted = Array.isArray(res.data)
+        ? res.data.map(normalizeProperty)
+        : [];
+
       setProperties(formatted);
     } catch (err) {
       console.error("Failed to fetch properties", err);
+      console.error("Fetch properties message:", err.message);
+      console.error("Fetch properties response:", err.response?.data);
+      console.error("Fetch properties URL:", `${API_URL}/properties`);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+  }, [fetchProperties]);
 
   // ================= AUTH =================
   const handleLogin = async () => {
-    if (!authForm.email || !authForm.password)
+    if (!authForm.email || !authForm.password) {
       throw new Error("Enter email and password");
+    }
 
     setLoading(true);
+
     try {
-      const res = await axios.post(`${API_URL}/auth/login`, {
-        email: authForm.email,
-        password: authForm.password,
-      });
+      const url = `${API_URL}/auth/login`;
+      console.log("Login URL:", url);
+
+      const res = await axios.post(
+        url,
+        {
+          email: authForm.email,
+          password: authForm.password,
+        },
+        {
+          timeout: 15000,
+        }
+      );
+
+      console.log("Login response:", res.data);
 
       setCurrentUser(res.data);
       localStorage.setItem("user", JSON.stringify(res.data));
       localStorage.setItem("token", res.data.token);
 
       setShowAuthModal(false);
-      fetchProperties();
+      await fetchProperties();
 
-      if (res.data.role === "agent") navigate("/agent/dashboard");
+      if (res.data.role === "agent") {
+        navigate("/agent/dashboard");
+      }
     } catch (err) {
+      console.error("Login failed:", err);
+      console.error("Login error response:", err.response?.data);
       throw new Error(err.response?.data?.error || "Login failed");
     } finally {
       setLoading(false);
@@ -127,22 +188,35 @@ export default function App() {
   };
 
   const handleSignup = async () => {
-    if (!authForm.name || !authForm.email || !authForm.password)
+    if (!authForm.name || !authForm.email || !authForm.password) {
       throw new Error("Fill all required fields");
+    }
 
     setLoading(true);
+
     try {
-      const res = await axios.post(`${API_URL}/auth/signup`, authForm);
+      const url = `${API_URL}/auth/signup`;
+      console.log("Signup URL:", url);
+
+      const res = await axios.post(url, authForm, {
+        timeout: 15000,
+      });
+
+      console.log("Signup response:", res.data);
 
       setCurrentUser(res.data);
       localStorage.setItem("user", JSON.stringify(res.data));
       localStorage.setItem("token", res.data.token);
 
       setShowAuthModal(false);
-      fetchProperties();
+      await fetchProperties();
 
-      if (res.data.role === "agent") navigate("/agent/dashboard");
+      if (res.data.role === "agent") {
+        navigate("/agent/dashboard");
+      }
     } catch (err) {
+      console.error("Signup failed:", err);
+      console.error("Signup error response:", err.response?.data);
       throw new Error(err.response?.data?.error || "Signup failed");
     } finally {
       setLoading(false);
@@ -152,30 +226,53 @@ export default function App() {
   // ================= LIST PROPERTY =================
   const listProp = async (propData, imageFiles) => {
     const token = localStorage.getItem("token");
-    if (!token || currentUser?.role !== "agent") return;
+
+    if (!token || currentUser?.role !== "agent") {
+      alert("Only logged in agents can list properties");
+      return;
+    }
 
     setLoading(true);
+
     try {
       const fd = new FormData();
-      imageFiles.forEach((f) => fd.append("images", f));
-      Object.keys(propData).forEach((k) => {
-        if (k === "images") return;
-        if (k === "lat" || k === "lng") {
-          const val = parseFloat(propData[k]);
-          if (!isNaN(val)) fd.append(k, val);
-        } else fd.append(k, propData[k] || "");
+
+      if (Array.isArray(imageFiles)) {
+        imageFiles.forEach((file) => fd.append("images", file));
+      }
+
+      Object.keys(propData).forEach((key) => {
+        if (key === "images") return;
+
+        if (key === "lat" || key === "lng") {
+          const val = parseFloat(propData[key]);
+          if (!Number.isNaN(val)) {
+            fd.append(key, val);
+          }
+        } else {
+          fd.append(key, propData[key] ?? "");
+        }
       });
 
-      await axios.post(`${API_URL}/properties`, fd, {
-        headers: { Authorization: `Bearer ${token}` },
+      const url = `${API_URL}/properties`;
+      console.log("List property URL:", url);
+
+      await axios.post(url, fd, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        timeout: 20000,
       });
 
       setShowListModal(false);
-      fetchProperties();
+      await fetchProperties();
     } catch (err) {
+      console.error("Failed to list property:", err);
+      console.error("List property error response:", err.response?.data);
       alert(err.response?.data?.error || "Failed to list property");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // ================= LOGOUT =================
@@ -185,19 +282,25 @@ export default function App() {
     navigate("/");
   };
 
-  // ================= HELPERS =================
-  const fmt = (v) => `M ${Number(v || 0).toLocaleString()}`;
-
   // ================= FILTER =================
-  const filteredProperties = properties.filter((p) => {
-    const purpose = p.purpose || "buy";
-    const matchesTab = purpose === activeTab;
-    const matchesSearch =
-      !searchQuery ||
-      p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.location?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTab && matchesSearch;
-  });
+  const filteredProperties = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+
+    return properties.filter((p) => {
+      const purpose = p.purpose || "buy";
+      const matchesTab = purpose === activeTab;
+
+      const matchesSearch =
+        !q ||
+        p.title?.toLowerCase().includes(q) ||
+        p.location?.toLowerCase().includes(q) ||
+        p.district?.toLowerCase().includes(q) ||
+        p.type?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q);
+
+      return matchesTab && matchesSearch;
+    });
+  }, [properties, activeTab, searchQuery]);
 
   // ================= RENDER =================
   return (
@@ -222,15 +325,12 @@ export default function App() {
             <PropertyList
               properties={filteredProperties}
               favorites={favorites}
-              toggleFav={(id) => {
-                if (!currentUser) return alert("Login to favorite");
-                setFavorites((p) =>
-                  p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
-                );
-              }}
+              toggleFav={toggleFav}
               fmt={fmt}
               setSelectedProperty={(p) =>
-                navigate(`/property/${p.id}`, { state: { selectedProperty: p } })
+                navigate(`/property/${p.id || p._id}`, {
+                  state: { selectedProperty: p },
+                })
               }
               currentUser={currentUser}
               loading={loading}
@@ -253,12 +353,7 @@ export default function App() {
           element={
             <PropertyDetail
               favorites={favorites}
-              toggleFav={(id) => {
-                if (!currentUser) return alert("Login to favorite");
-                setFavorites((p) =>
-                  p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
-                );
-              }}
+              toggleFav={toggleFav}
               currentUser={currentUser}
             />
           }
@@ -272,7 +367,7 @@ export default function App() {
                 setShowListModal={setShowListModal}
                 currentUser={currentUser}
                 properties={properties.filter(
-                  (p) => p.agent_id === currentUser.id
+                  (p) => String(p.agent_id) === String(getCurrentUserId())
                 )}
               />
             ) : (
