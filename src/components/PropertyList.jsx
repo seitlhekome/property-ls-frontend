@@ -15,7 +15,7 @@ export default function PropertyList({
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto p-6 text-center text-gray-500">
-        Loading properties....
+        Loading properties...
       </div>
     );
   }
@@ -35,21 +35,36 @@ export default function PropertyList({
     return null;
   };
 
+  const getImageUrl = (property) => {
+    if (!Array.isArray(property.images) || property.images.length === 0) {
+      return "/no-image.png";
+    }
+
+    const firstImage = property.images[0];
+
+    if (typeof firstImage === "string" && firstImage.trim()) {
+      return firstImage;
+    }
+
+    if (typeof firstImage === "object" && firstImage?.url) {
+      return firstImage.url;
+    }
+
+    return "/no-image.png";
+  };
+
   const defaultCoords = [-29.3152, 27.4869];
 
   return (
     <div className="max-w-7xl mx-auto p-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {properties.map((p) => {
-        const image =
-          Array.isArray(p.images) && p.images.length > 0
-            ? p.images[0]?.url || "https://via.placeholder.com/600x400?text=No+Image"
-            : "https://via.placeholder.com/600x400?text=No+Image";
-
-        const isFav = favorites.includes(p.id);
+        const image = getImageUrl(p);
+        const propertyId = p.id ?? p._id;
+        const isFav = favorites.includes(propertyId);
 
         return (
           <div
-            key={p.id}
+            key={propertyId}
             className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden"
             onClick={() => setSelectedProperty(p)}
             role="button"
@@ -60,6 +75,10 @@ export default function PropertyList({
                 src={image}
                 alt={p.title || "Property"}
                 className="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = "/no-image.png";
+                }}
               />
             </div>
 
@@ -108,7 +127,7 @@ export default function PropertyList({
                       alert("Please log in to save properties");
                       return;
                     }
-                    toggleFav(p.id);
+                    toggleFav(propertyId);
                   }}
                   className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-red-600 transition"
                 >
