@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-
-const API = "https://property-ls-backend-production.up.railway.app"; // live backend
+import { API_URL } from "../config";
 
 export default function PropertyDetail({ favorites = [], toggleFav, currentUser }) {
   const { id } = useParams();
@@ -12,34 +11,89 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
   const [loading, setLoading] = useState(true);
   const [mainImageIndex, setMainImageIndex] = useState(0);
 
+  const fallbackImage =
+    "data:image/svg+xml;charset=UTF-8," +
+    encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="800" height="500">
+        <rect width="100%" height="100%" fill="#e5e7eb"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-size="28" font-family="Arial, sans-serif">
+          No Image
+        </text>
+      </svg>
+    `);
+
+  const normalizeImages = (images) => {
+    try {
+      let parsed = images;
+
+      if (typeof parsed === "string") {
+        parsed = JSON.parse(parsed);
+      }
+
+      if (!Array.isArray(parsed)) return [];
+
+      return parsed
+        .map((img) => {
+          if (typeof img === "string" && img.trim()) {
+            return img;
+          }
+
+          if (img && typeof img === "object" && img.url) {
+            return img.url;
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+    } catch (error) {
+      console.error("Failed to normalize property images:", error);
+      return [];
+    }
+  };
+
   useEffect(() => {
     const fetchProperty = async () => {
+      setLoading(true);
+
       try {
-        // Fetch single property by ID if backend supports it
-        const res = await axios.get(`${API}/api/properties/${id}`);
+        const res = await axios.get(`${API_URL}/properties/${id}`);
         setProperty(res.data);
       } catch (err) {
         console.error("Failed to load property:", err);
 
-        // Fallback: fetch all and find
         try {
-          const all = await axios.get(`${API}/api/properties`);
+          const all = await axios.get(`${API_URL}/properties`);
           const found = all.data.find((p) => String(p.id) === String(id));
           setProperty(found || null);
         } catch (err2) {
           console.error("Fallback fetch failed:", err2);
           setProperty(null);
         }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
+
     fetchProperty();
   }, [id]);
+
+  const propertyId = property?.id ?? property?._id;
+
+  const images = useMemo(() => {
+    const normalized = normalizeImages(property?.images);
+    return normalized.length > 0 ? normalized : [fallbackImage];
+  }, [property]);
+
+  useEffect(() => {
+    setMainImageIndex(0);
+  }, [propertyId]);
+
+  const safeMainImage = images[mainImageIndex] || fallbackImage;
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Loading property…
+        Loading property...
       </div>
     );
   }
@@ -58,19 +112,16 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
     );
   }
 
-  const isFav = favorites.includes(property.id);
-  const images =
-    Array.isArray(property.images) && property.images.length > 0
-      ? property.images
-      : ["https://via.placeholder.com/800x500?text=No+Image"];
+  const isFav = favorites.includes(propertyId);
 
   const whatsappNumber = property.whatsapp
-    ? property.whatsapp.replace(/\D/g, "")
+    ? String(property.whatsapp).replace(/\D/g, "")
     : null;
+
+  const formatMoney = (value) => `M ${Number(value || 0).toLocaleString()}`;
 
   return (
     <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* MAIN CONTENT */}
       <div className="lg:col-span-2">
         <button
           onClick={() => navigate("/")}
@@ -83,20 +134,28 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
           {property.title || "Untitled Property"}
         </h1>
 
-        {/* IMAGES */}
         <div className="mb-6">
           <img
-            src={images[mainImageIndex]}
-            alt="Property"
+            src={safeMainImage}
+            alt={property.title || "Property"}
             className="w-full h-96 object-cover rounded mb-3"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = fallbackImage;
+            }}
           />
+
           <div className="flex gap-2 overflow-x-auto">
             {images.map((img, i) => (
               <img
-                key={i}
+                key={`${img}-${i}`}
                 src={img}
-                alt=""
+                alt={`Property ${i + 1}`}
                 onClick={() => setMainImageIndex(i)}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = fallbackImage;
+                }}
                 className={`h-20 w-24 object-cover rounded cursor-pointer border-2 ${
                   i === mainImageIndex ? "border-blue-600" : "border-transparent"
                 }`}
@@ -105,22 +164,24 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
           </div>
         </div>
 
-        {/* DETAILS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-sm">
           <p><strong>Type:</strong> {property.type || "N/A"}</p>
           <p><strong>District:</strong> {property.district || "N/A"}</p>
           <p><strong>Location:</strong> {property.location || "N/A"}</p>
-          <p><strong>Bedrooms:</strong> {property.bedrooms || "N/A"}</p>
-          <p><strong>Bathrooms:</strong> {property.bathrooms || "N/A"}</p>
+          <p><strong>Bedrooms:</strong> {property.bedrooms ?? "N/A"}</p>
+          <p><strong>Bathrooms:</strong> {property.bathrooms ?? "N/A"}</p>
           <p><strong>Size:</strong> {property.size ? `${property.size} m²` : "N/A"}</p>
+
           <p className="text-blue-600 font-bold text-lg">
-            {property.price > 0 && `M ${property.price.toLocaleString()}`}
-            {property.rent_price > 0 &&
-              ` · M ${property.rent_price.toLocaleString()} / month`}
+            {property.purpose === "buy" && Number(property.price) > 0 && (
+              <span>{formatMoney(property.price)}</span>
+            )}
+            {property.purpose === "rent" && Number(property.rent_price) > 0 && (
+              <span>{formatMoney(property.rent_price)} / month</span>
+            )}
           </p>
         </div>
 
-        {/* DESCRIPTION */}
         <div className="mb-6">
           <h3 className="font-semibold text-lg mb-2">Description</h3>
           <p className="text-gray-700">
@@ -128,11 +189,13 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
           </p>
         </div>
 
-        {/* FAVORITE */}
         <button
           onClick={() => {
-            if (!currentUser) return alert("Please log in to favorite properties");
-            toggleFav(property.id);
+            if (!currentUser) {
+              alert("Please log in to favorite properties");
+              return;
+            }
+            toggleFav(propertyId);
           }}
           className={`px-4 py-2 rounded text-sm font-medium ${
             isFav
@@ -144,7 +207,6 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
         </button>
       </div>
 
-      {/* CONTACT CARD */}
       <div className="lg:sticky lg:top-24 h-fit rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-4">
           Contact Agent
