@@ -1,29 +1,107 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import ListModal from "./ListModal";
-
-const API = import.meta.env.VITE_API_URL;
+import { API_URL } from "../config";
 
 export default function Dashboard({ currentUser, setShowListModal }) {
   const [myProperties, setMyProperties] = useState([]);
   const [loadingProps, setLoadingProps] = useState(false);
 
-  // Editing state
   const [editProp, setEditProp] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
   const token = localStorage.getItem("token");
 
-  // ================= FETCH PROPERTIES =================
+  const getCurrentUserId = () =>
+    currentUser?.id ||
+    currentUser?.user?.id ||
+    currentUser?._id ||
+    currentUser?.user?._id;
+
+  const normalizeImages = (images) => {
+    try {
+      let parsed = images;
+
+      if (typeof parsed === "string") {
+        parsed = JSON.parse(parsed);
+      }
+
+      if (!Array.isArray(parsed)) return [];
+
+      return parsed;
+    } catch (error) {
+      console.error("Failed to normalize images:", error);
+      return [];
+    }
+  };
+
+  const getImageUrl = (images) => {
+    const normalized = normalizeImages(images);
+
+    if (!normalized.length) {
+      return (
+        "data:image/svg+xml;charset=UTF-8," +
+        encodeURIComponent(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
+            <rect width="100%" height="100%" fill="#e5e7eb"/>
+            <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-size="24" font-family="Arial, sans-serif">
+              No Image
+            </text>
+          </svg>
+        `)
+      );
+    }
+
+    const firstImage = normalized[0];
+
+    if (typeof firstImage === "string" && firstImage.trim()) {
+      return firstImage;
+    }
+
+    if (firstImage && typeof firstImage === "object" && firstImage.url) {
+      return firstImage.url;
+    }
+
+    return (
+      "data:image/svg+xml;charset=UTF-8," +
+      encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
+          <rect width="100%" height="100%" fill="#e5e7eb"/>
+          <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-size="24" font-family="Arial, sans-serif">
+            No Image
+          </text>
+        </svg>
+      `)
+    );
+  };
+
   const fetchProperties = async () => {
-    if (!currentUser?.id) return;
+    const userId = getCurrentUserId();
+
+    if (!userId) {
+      console.log("No current user ID found:", currentUser);
+      return;
+    }
 
     setLoadingProps(true);
+
     try {
-      const res = await axios.get(`${API}/api/properties/agent/${currentUser.id}`, {
+      const res = await axios.get(`${API_URL}/properties`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setMyProperties(Array.isArray(res.data) ? res.data : []);
+
+      const allProperties = Array.isArray(res.data) ? res.data : [];
+
+      const filtered = allProperties.filter(
+        (p) => String(p.agent_id ?? p.agentId ?? "") === String(userId)
+      );
+
+      console.log("Current user:", currentUser);
+      console.log("Current user ID:", userId);
+      console.log("All properties:", allProperties);
+      console.log("My dashboard properties:", filtered);
+
+      setMyProperties(filtered);
     } catch (err) {
       console.error("Fetch properties failed:", err);
       alert("Failed to load properties");
@@ -36,7 +114,6 @@ export default function Dashboard({ currentUser, setShowListModal }) {
     fetchProperties();
   }, [currentUser]);
 
-  // ================= DELETE PROPERTY =================
   const handleDelete = async (prop) => {
     const propId = prop._id || prop.id;
 
@@ -46,28 +123,28 @@ export default function Dashboard({ currentUser, setShowListModal }) {
     }
 
     if (!window.confirm("Are you sure you want to delete this property?")) return;
+
     if (!token) {
       alert("You must be logged in");
       return;
     }
 
     try {
-      await axios.delete(`${API}/api/properties/${propId}`, {
+      await axios.delete(`${API_URL}/properties/${propId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // ✅ Update UI immediately
-      setMyProperties((prev) => prev.filter((p) => (p._id || p.id) !== propId));
+      setMyProperties((prev) =>
+        prev.filter((p) => String(p._id || p.id) !== String(propId))
+      );
+
       alert("Property deleted successfully");
     } catch (err) {
       console.error("Delete failed:", err);
-      if (err.response?.status !== 204) {
-        alert(err.response?.data?.error || "Failed to delete property");
-      }
+      alert(err.response?.data?.error || "Failed to delete property");
     }
   };
 
-  // ================= EDIT PROPERTY =================
   const handleEdit = (prop) => {
     setEditProp(prop);
     setShowEditModal(true);
@@ -90,13 +167,14 @@ export default function Dashboard({ currentUser, setShowListModal }) {
         }
       });
 
-      // Ensure agent_id is always included
-      formData.append("agent_id", currentUser.id);
+      formData.append("agent_id", getCurrentUserId());
 
       await axios.put(
-        `${API}/api/properties/${propData._id || propData.id}`,
+        `${API_URL}/properties/${propData._id || propData.id}`,
         formData,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
       alert("Property updated successfully");
@@ -111,7 +189,6 @@ export default function Dashboard({ currentUser, setShowListModal }) {
 
   const fmtPrice = (val) => `M ${Number(val || 0).toLocaleString()}`;
 
-  // ================= RENDER =================
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">My Dashboard</h1>
@@ -133,24 +210,36 @@ export default function Dashboard({ currentUser, setShowListModal }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {myProperties.map((prop) => {
             const id = prop._id || prop.id;
+            const imageUrl = getImageUrl(prop.images);
 
             return (
               <div
                 key={id}
                 className="border rounded shadow p-4 bg-white flex flex-col"
               >
-                {prop.images?.length > 0 && (
-                  <img
-                    src={prop.images[0]}
-                    alt={prop.title}
-                    className="w-full h-48 object-cover mb-2 rounded"
-                  />
-                )}
+                <img
+                  src={imageUrl}
+                  alt={prop.title || "Property"}
+                  className="w-full h-48 object-cover mb-2 rounded"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src =
+                      "data:image/svg+xml;charset=UTF-8," +
+                      encodeURIComponent(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
+                          <rect width="100%" height="100%" fill="#e5e7eb"/>
+                          <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-size="24" font-family="Arial, sans-serif">
+                            No Image
+                          </text>
+                        </svg>
+                      `);
+                  }}
+                />
 
                 <h2 className="text-lg font-semibold">{prop.title}</h2>
 
                 <p className="text-gray-600">
-                  {prop.type} | {prop.district}
+                  {prop.type || "N/A"} | {prop.district || "N/A"}
                 </p>
 
                 <p className="font-bold">
@@ -200,7 +289,7 @@ export default function Dashboard({ currentUser, setShowListModal }) {
           setNewProp={setEditProp}
           listPropBackend={updateProp}
           setShowListModal={setShowEditModal}
-          currentUser={currentUser} // ✅ Pass currentUser for agent_id
+          currentUser={currentUser}
         />
       )}
     </div>
