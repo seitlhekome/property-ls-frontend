@@ -16,7 +16,19 @@ export default function Dashboard({ currentUser, setShowListModal }) {
     currentUser?.id ||
     currentUser?.user?.id ||
     currentUser?._id ||
-    currentUser?.user?._id;
+    currentUser?.user?._id ||
+    null;
+
+  const fallbackImage =
+    "data:image/svg+xml;charset=UTF-8," +
+    encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
+        <rect width="100%" height="100%" fill="#e5e7eb"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-size="24" font-family="Arial, sans-serif">
+          No Image
+        </text>
+      </svg>
+    `);
 
   const normalizeImages = (images) => {
     try {
@@ -38,19 +50,7 @@ export default function Dashboard({ currentUser, setShowListModal }) {
   const getImageUrl = (images) => {
     const normalized = normalizeImages(images);
 
-    if (!normalized.length) {
-      return (
-        "data:image/svg+xml;charset=UTF-8," +
-        encodeURIComponent(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
-            <rect width="100%" height="100%" fill="#e5e7eb"/>
-            <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-size="24" font-family="Arial, sans-serif">
-              No Image
-            </text>
-          </svg>
-        `)
-      );
-    }
+    if (!normalized.length) return fallbackImage;
 
     const firstImage = normalized[0];
 
@@ -62,17 +62,7 @@ export default function Dashboard({ currentUser, setShowListModal }) {
       return firstImage.url;
     }
 
-    return (
-      "data:image/svg+xml;charset=UTF-8," +
-      encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
-          <rect width="100%" height="100%" fill="#e5e7eb"/>
-          <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-size="24" font-family="Arial, sans-serif">
-            No Image
-          </text>
-        </svg>
-      `)
-    );
+    return fallbackImage;
   };
 
   const fetchProperties = async () => {
@@ -80,6 +70,7 @@ export default function Dashboard({ currentUser, setShowListModal }) {
 
     if (!userId) {
       console.log("No current user ID found:", currentUser);
+      setMyProperties([]);
       return;
     }
 
@@ -159,18 +150,32 @@ export default function Dashboard({ currentUser, setShowListModal }) {
     try {
       const formData = new FormData();
 
-      imageFiles.forEach((file) => formData.append("images", file));
+      const cleanValue = (value) => {
+        if (Array.isArray(value)) return value[0] ?? "";
+        return value ?? "";
+      };
+
+      if (Array.isArray(imageFiles) && imageFiles.length > 0) {
+        imageFiles.forEach((file) => formData.append("images", file));
+      }
 
       Object.keys(propData).forEach((key) => {
-        if (key !== "images" && propData[key] !== undefined) {
-          formData.append(key, propData[key]);
-        }
+        if (key === "images") return;
+        if (key === "_id") return;
+
+        formData.append(key, cleanValue(propData[key]));
       });
 
-      formData.append("agent_id", getCurrentUserId());
+      if (!propData.agent_id && !propData.agentId) {
+        formData.append("agent_id", getCurrentUserId() || "");
+      }
+
+      for (const pair of formData.entries()) {
+        console.log("UPDATE FORM DATA:", pair[0], pair[1]);
+      }
 
       await axios.put(
-        `${API_URL}/properties/${propData._id || propData.id}`,
+        `${API_URL}/properties/${propData.id || propData._id}`,
         formData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -223,16 +228,7 @@ export default function Dashboard({ currentUser, setShowListModal }) {
                   className="w-full h-48 object-cover mb-2 rounded"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
-                    e.currentTarget.src =
-                      "data:image/svg+xml;charset=UTF-8," +
-                      encodeURIComponent(`
-                        <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
-                          <rect width="100%" height="100%" fill="#e5e7eb"/>
-                          <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-size="24" font-family="Arial, sans-serif">
-                            No Image
-                          </text>
-                        </svg>
-                      `);
+                    e.currentTarget.src = fallbackImage;
                   }}
                 />
 
@@ -258,7 +254,9 @@ export default function Dashboard({ currentUser, setShowListModal }) {
                 <p className="text-gray-500 text-sm mt-1">
                   Posted:{" "}
                   {prop.createdAt || prop.date_posted
-                    ? new Date(prop.createdAt || prop.date_posted).toLocaleDateString()
+                    ? new Date(
+                        prop.createdAt || prop.date_posted
+                      ).toLocaleDateString()
                     : "—"}
                 </p>
 
