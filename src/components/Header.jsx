@@ -12,7 +12,6 @@ export default function Header({
   searchQuery,
   setSearchQuery,
   filteredProperties,
-  favoritesCount = 0,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,7 +20,6 @@ export default function Header({
     currentUser?.role === "agent" || currentUser?.user?.role === "agent";
 
   const isDashboardPage = location.pathname === "/agent/dashboard";
-  const isSavedPage = location.pathname === "/saved-properties";
   const isHomePage = location.pathname === "/";
 
   return (
@@ -44,12 +42,12 @@ export default function Header({
           <p className="text-sm text-gray-500">Lesotho Real Estate</p>
         </div>
 
-        {/* Search + Tabs (ONLY on homepage) */}
+        {/* Search + Tabs (ONLY homepage) */}
         <div className="flex flex-col md:flex-row gap-3 items-center w-full md:w-auto">
           {isHomePage && (
             <>
-              {/* Rent first */}
               <div className="flex gap-2">
+                {/* Rent first */}
                 <button
                   onClick={() => setActiveTab && setActiveTab("rent")}
                   className={`px-4 py-2 rounded ${
@@ -107,16 +105,6 @@ export default function Header({
 
           {currentUser ? (
             <>
-              {/* Saved Properties */}
-              {!isSavedPage && (
-                <button
-                  onClick={() => navigate("/saved-properties")}
-                  className="px-3 py-2 border border-blue-600 text-blue-600 rounded hover:bg-blue-50"
-                >
-                  Saved {favoritesCount > 0 && `(${favoritesCount})`}
-                </button>
-              )}
-
               {/* Agent Dashboard */}
               {isAgent && !isDashboardPage && (
                 <button
@@ -127,7 +115,7 @@ export default function Header({
                 </button>
               )}
 
-              {/* List Property (agent only) */}
+              {/* List Property */}
               {isAgent && (
                 <button
                   onClick={() => setShowListModal && setShowListModal(true)}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 export default function PropertyCard({ property, onSelect }) {
   const fallbackImage =
@@ -12,7 +12,7 @@ export default function PropertyCard({ property, onSelect }) {
       </svg>
     `);
 
-  const getImageUrl = (images) => {
+  const normalizeImages = (images) => {
     try {
       let parsed = images;
 
@@ -20,64 +20,127 @@ export default function PropertyCard({ property, onSelect }) {
         parsed = JSON.parse(parsed);
       }
 
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        return fallbackImage;
-      }
+      if (!Array.isArray(parsed)) return [];
 
-      const firstImage = parsed[0];
+      return parsed
+        .map((img) => {
+          if (typeof img === "string" && img.trim()) {
+            return img;
+          }
 
-      if (typeof firstImage === "string" && firstImage.trim()) {
-        return firstImage;
-      }
+          if (img && typeof img === "object" && img.url) {
+            return img.url;
+          }
 
-      if (firstImage && typeof firstImage === "object" && firstImage.url) {
-        return firstImage.url;
-      }
-
-      return fallbackImage;
+          return null;
+        })
+        .filter(Boolean);
     } catch (error) {
-      console.error("Failed to get property image:", error);
-      return fallbackImage;
+      console.error("Failed to normalize property images:", error);
+      return [];
     }
   };
 
-  const imageUrl = getImageUrl(property.images);
+  const imageUrl = useMemo(() => {
+    const normalized = normalizeImages(property?.images);
+    return normalized[0] || fallbackImage;
+  }, [property?.images]);
+
+  const formatMoney = (value) => `M ${Number(value || 0).toLocaleString()}`;
+
+  const displayPrice = () => {
+    if (property?.purpose === "rent") {
+      return Number(property?.rent_price) > 0
+        ? `${formatMoney(property.rent_price)} / month`
+        : "Rent on request";
+    }
+
+    return Number(property?.price) > 0
+      ? formatMoney(property.price)
+      : "Price on request";
+  };
+
+  const purposeLabel =
+    property?.purpose === "rent" ? "For Rent" : "For Sale";
+
+  const typeLabel = property?.type || "Property";
+  const title = property?.title || "Untitled Property";
+  const location = property?.location || "Unknown location";
+  const district = property?.district || "Lesotho";
 
   return (
     <div
       onClick={() => onSelect(property)}
-      className="bg-white rounded-lg shadow hover:shadow-lg transition cursor-pointer overflow-hidden"
+      className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg cursor-pointer"
     >
-      <img
-        src={imageUrl}
-        alt={property.title || "Property"}
-        className="w-full h-48 object-cover"
-        onError={(e) => {
-          e.currentTarget.onerror = null;
-          e.currentTarget.src = fallbackImage;
-        }}
-      />
+      <div className="relative">
+        <img
+          src={imageUrl}
+          alt={title}
+          className="h-52 w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = fallbackImage;
+          }}
+        />
+
+        <div className="absolute left-3 top-3 flex gap-2">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${
+              property?.purpose === "rent"
+                ? "bg-green-600 text-white"
+                : "bg-blue-600 text-white"
+            }`}
+          >
+            {purposeLabel}
+          </span>
+
+          <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-gray-700 shadow-sm">
+            {typeLabel}
+          </span>
+        </div>
+      </div>
 
       <div className="p-4">
-        <h3 className="font-semibold text-lg mb-1">
-          {property.title || "Untitled Property"}
-        </h3>
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <h3 className="line-clamp-1 text-lg font-semibold text-gray-900">
+            {title}
+          </h3>
+        </div>
 
-        <p className="text-gray-600 text-sm">
-          {property.location || "Unknown location"} • {property.district || "Lesotho"}
+        <p className="line-clamp-1 text-sm text-gray-600">
+          {location} • {district}
         </p>
 
-        <p className="font-bold mt-2">
-          {property.price
-            ? "M " + Number(property.price).toLocaleString()
-            : "Price on request"}
+        <p className="mt-3 text-xl font-bold text-blue-600">
+          {displayPrice()}
         </p>
 
-        {property.whatsapp && (
-          <p className="text-green-700 text-sm mt-2">
-            WhatsApp: {property.whatsapp}
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+          <span>🛏 {property?.bedrooms ?? "-"}</span>
+          <span>🛁 {property?.bathrooms ?? "-"}</span>
+          <span>📐 {property?.size ? `${property.size} m²` : "-"}</span>
+        </div>
+
+        {property?.description && (
+          <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-600">
+            {property.description}
           </p>
         )}
+
+        <div className="mt-4 flex items-center justify-between">
+          {property?.whatsapp ? (
+            <p className="text-sm font-medium text-green-700">
+              WhatsApp available
+            </p>
+          ) : (
+            <p className="text-sm text-gray-400">No WhatsApp listed</p>
+          )}
+
+          <span className="text-sm font-medium text-blue-600 group-hover:underline">
+            View details
+          </span>
+        </div>
       </div>
     </div>
   );
