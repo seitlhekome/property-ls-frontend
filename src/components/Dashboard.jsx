@@ -31,36 +31,12 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
     currentUser?.user?.full_name ||
     "Agent";
 
-  // 🔥 Skeleton Loader
-  const SkeletonCard = () => (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden animate-pulse">
-      <div className="w-full h-52 bg-gray-200"></div>
-
-      <div className="p-5 space-y-3">
-        <div className="h-5 bg-gray-200 rounded w-2/3"></div>
-        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-
-        <div className="flex gap-4 mt-2">
-          <div className="h-3 bg-gray-200 rounded w-10"></div>
-          <div className="h-3 bg-gray-200 rounded w-10"></div>
-          <div className="h-3 bg-gray-200 rounded w-12"></div>
-        </div>
-
-        <div className="flex gap-2 mt-4">
-          <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-          <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-        </div>
-      </div>
-    </div>
-  );
-
   const fallbackImage =
     "data:image/svg+xml;charset=UTF-8," +
     encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
         <rect width="100%" height="100%" fill="#e5e7eb"/>
-        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-size="24">
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#6b7280" font-size="24" font-family="Arial, sans-serif">
           No Image
         </text>
       </svg>
@@ -69,20 +45,34 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
   const normalizeImages = (images) => {
     try {
       let parsed = images;
-      if (typeof parsed === "string") parsed = JSON.parse(parsed);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
+
+      if (typeof parsed === "string") {
+        parsed = JSON.parse(parsed);
+      }
+
+      if (!Array.isArray(parsed)) return [];
+
+      return parsed;
+    } catch (error) {
+      console.error("Failed to normalize images:", error);
       return [];
     }
   };
 
   const getImageUrl = (images) => {
     const normalized = normalizeImages(images);
+
     if (!normalized.length) return fallbackImage;
 
-    const first = normalized[0];
-    if (typeof first === "string") return first;
-    if (first?.url) return first.url;
+    const firstImage = normalized[0];
+
+    if (typeof firstImage === "string" && firstImage.trim()) {
+      return firstImage;
+    }
+
+    if (firstImage && typeof firstImage === "object" && firstImage.url) {
+      return firstImage.url;
+    }
 
     return fallbackImage;
   };
@@ -91,7 +81,12 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
 
   const fetchProperties = useCallback(async () => {
     const userId = getCurrentUserId();
-    if (!userId) return;
+
+    if (!userId) {
+      setAllProperties([]);
+      setMyProperties([]);
+      return;
+    }
 
     setLoadingProps(true);
 
@@ -100,18 +95,21 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
-      const data = Array.isArray(res.data) ? res.data : [];
-      setAllProperties(data);
+      const fetchedProperties = Array.isArray(res.data) ? res.data : [];
+      setAllProperties(fetchedProperties);
 
-      const mine = data.filter(
+      const filtered = fetchedProperties.filter(
         (p) =>
           String(p.agent_id ?? p.agentId ?? p.user_id ?? p.userId ?? "") ===
           String(userId)
       );
 
-      setMyProperties(mine);
+      setMyProperties(filtered);
     } catch (err) {
-      console.error("Fetch failed:", err);
+      console.error("Fetch properties failed:", err);
+      alert("Failed to load properties");
+      setAllProperties([]);
+      setMyProperties([]);
     } finally {
       setLoadingProps(false);
     }
@@ -122,18 +120,107 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
   }, [fetchProperties]);
 
   const savedProperties = useMemo(() => {
-    return allProperties.filter((p) =>
-      favorites.includes(getPropertyId(p))
+    return allProperties.filter((prop) =>
+      favorites.some((favId) => String(favId) === String(getPropertyId(prop)))
     );
-  }, [allProperties, favorites]);
+  }, [allProperties, favorites, getPropertyId]);
+
+  const handleDelete = async (prop) => {
+    const propId = prop._id || prop.id;
+
+    if (!propId) {
+      alert("Invalid property ID");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete this property?")) return;
+
+    if (!token) {
+      alert("You must be logged in");
+      return;
+    }
+
+    try {
+      await axios.delete(`${API_URL}/properties/${propId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setMyProperties((prev) =>
+        prev.filter((p) => String(p._id || p.id) !== String(propId))
+      );
+
+      setAllProperties((prev) =>
+        prev.filter((p) => String(p._id || p.id) !== String(propId))
+      );
+
+      alert("Property deleted successfully");
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert(err.response?.data?.error || "Failed to delete property");
+    }
+  };
+
+  const handleEdit = (prop) => {
+    setEditProp(prop);
+    setShowEditModal(true);
+  };
+
+  const updateProp = async (propData, imageFiles = []) => {
+    if (!token) {
+      alert("You must be logged in");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+
+      const cleanValue = (value) => {
+        if (Array.isArray(value)) return value[0] ?? "";
+        return value ?? "";
+      };
+
+      if (Array.isArray(imageFiles) && imageFiles.length > 0) {
+        imageFiles.forEach((file) => formData.append("images", file));
+      }
+
+      Object.keys(propData).forEach((key) => {
+        if (key === "images") return;
+        if (key === "_id") return;
+
+        formData.append(key, cleanValue(propData[key]));
+      });
+
+      if (!propData.agent_id && !propData.agentId) {
+        formData.append("agent_id", getCurrentUserId() || "");
+      }
+
+      await axios.put(
+        `${API_URL}/properties/${propData.id || propData._id}`,
+        formData,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      alert("Property updated successfully");
+      setShowEditModal(false);
+      setEditProp(null);
+      fetchProperties();
+    } catch (err) {
+      console.error("Update failed:", err);
+      alert(err.response?.data?.error || "Failed to update property");
+    }
+  };
+
+  const fmtPrice = (val) => `M ${Number(val || 0).toLocaleString()}`;
 
   const stats = useMemo(() => {
-    return {
-      total: myProperties.length,
-      buyCount: myProperties.filter((p) => p.purpose === "buy").length,
-      rentCount: myProperties.filter((p) => p.purpose === "rent").length,
-      savedCount: savedProperties.length,
-    };
+    const total = myProperties.length;
+    const buyCount = myProperties.filter((p) => p.purpose === "buy").length;
+    const rentCount = myProperties.filter((p) => p.purpose === "rent").length;
+    const savedCount = savedProperties.length;
+
+    return { total, buyCount, rentCount, savedCount };
   }, [myProperties, savedProperties]);
 
   const displayedProperties = useMemo(() => {
@@ -143,75 +230,218 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
     return myProperties;
   }, [activeDataView, myProperties, savedProperties]);
 
+  const getSectionTitle = () => {
+    if (activeDataView === "saved") return "Saved Properties";
+    if (activeDataView === "buy") return "For Sale";
+    if (activeDataView === "rent") return "For Rent";
+    return "My Properties";
+  };
+
+  const getSectionText = () => {
+    if (activeDataView === "saved") {
+      return "These are the properties saved by this signed-in account. Click any card to open the full property details.";
+    }
+    if (activeDataView === "buy") {
+      return "These are your listed properties that are for sale.";
+    }
+    if (activeDataView === "rent") {
+      return "These are your listed properties that are for rent.";
+    }
+    return "View, edit, and manage the properties you have listed.";
+  };
+
   const openProperty = (prop) => {
-    navigate(`/property/${getPropertyId(prop)}`, {
+    const id = getPropertyId(prop);
+    if (!id) return;
+
+    navigate(`/property/${id}`, {
       state: { selectedProperty: prop },
     });
   };
 
-  const fmtPrice = (v) => `M ${Number(v || 0).toLocaleString()}`;
-
   const StatCard = ({ title, value, stateKey }) => (
     <button
+      type="button"
       onClick={() => setActiveDataView(stateKey)}
-      className={`w-full p-5 rounded-xl border ${
-        activeDataView === stateKey ? "bg-blue-50 border-blue-600" : "bg-white"
+      className={`w-full rounded-xl border p-5 shadow-sm text-left transition ${
+        activeDataView === stateKey
+          ? "border-blue-600 bg-blue-50"
+          : "border-gray-200 bg-white hover:border-blue-300 hover:shadow-md"
       }`}
     >
       <p className="text-sm text-gray-500">{title}</p>
-      <h2 className="text-2xl font-bold">{value}</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mt-1">{value}</h2>
     </button>
   );
 
   return (
     <div className="max-w-7xl mx-auto p-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Agent Dashboard</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Welcome, <span className="text-blue-600">{getCurrentUserName()}</span>
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Manage your property listings, update details, and keep your portfolio current.
+            </p>
+          </div>
 
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">
-          Welcome, {getCurrentUserName()}
-        </h1>
+          <div>
+            <button
+              onClick={() => setShowListModal(true)}
+              className="bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+            >
+              + List New Property
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
         <StatCard title="Total Listings" value={stats.total} stateKey="all" />
         <StatCard title="For Sale" value={stats.buyCount} stateKey="buy" />
         <StatCard title="For Rent" value={stats.rentCount} stateKey="rent" />
-        <StatCard title="Saved" value={stats.savedCount} stateKey="saved" />
+        <StatCard title="Saved Properties" value={stats.savedCount} stateKey="saved" />
       </div>
 
-      {/* Content */}
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">{getSectionTitle()}</h2>
+        <p className="text-sm text-gray-500 mt-1">{getSectionText()}</p>
+      </div>
+
       {loadingProps ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500 shadow-sm">
+          Loading properties...
+        </div>
+      ) : displayedProperties.length === 0 ? (
+        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-10 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            {activeDataView === "saved"
+              ? "No saved properties yet"
+              : "No properties found"}
+          </h3>
+          <p className="text-gray-500 mb-4">
+            {activeDataView === "saved"
+              ? "Save properties from the homepage, and they will appear here with real details."
+              : "Try another dashboard section or add a new property listing."}
+          </p>
+          {activeDataView !== "saved" && (
+            <button
+              onClick={() => setShowListModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              List Property
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {displayedProperties.map((p) => (
-            <div
-              key={getPropertyId(p)}
-              className="bg-white rounded-xl shadow cursor-pointer overflow-hidden"
-              onClick={() => openProperty(p)}
-            >
-              <img
-                src={getImageUrl(p.images)}
-                className="w-full h-52 object-cover"
-                alt=""
-              />
+          {displayedProperties.map((prop) => {
+            const id = prop._id || prop.id;
+            const imageUrl = getImageUrl(prop.images);
+            const isSavedView = activeDataView === "saved";
 
-              <div className="p-4">
-                <h3 className="font-semibold">{p.title}</h3>
-                <p className="text-blue-600 font-bold">
-                  {p.purpose === "rent"
-                    ? `${fmtPrice(p.rent_price)} / month`
-                    : fmtPrice(p.price)}
-                </p>
+            return (
+              <div
+                key={`${activeDataView}-${id}`}
+                className={`bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition overflow-hidden flex flex-col ${
+                  isSavedView ? "cursor-pointer" : ""
+                }`}
+                onClick={isSavedView ? () => openProperty(prop) : undefined}
+              >
+                <img
+                  src={imageUrl}
+                  alt={prop.title || "Property"}
+                  className="w-full h-52 object-cover"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = fallbackImage;
+                  }}
+                />
+
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {prop.title || "Untitled Property"}
+                    </h3>
+
+                    <span
+                      className={`text-xs font-medium px-2 py-1 rounded-full ${
+                        prop.purpose === "buy"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-sky-100 text-sky-700"
+                      }`}
+                    >
+                      {prop.purpose === "buy" ? "For Sale" : "For Rent"}
+                    </span>
+                  </div>
+
+                  <p className="text-blue-600 font-bold text-lg mb-1">
+                    {prop.purpose === "buy"
+                      ? fmtPrice(prop.price)
+                      : `M ${Number(prop.rent_price || 0).toLocaleString()}/month`}
+                  </p>
+
+                  <p className="text-sm text-gray-600">
+                    {prop.type || "N/A"} • {prop.location || "Unknown location"},{" "}
+                    {prop.district || "N/A"}
+                  </p>
+
+                  <div className="flex gap-4 text-xs text-gray-500 mt-3">
+                    <span>🛏 {prop.bedrooms ?? "-"}</span>
+                    <span>🛁 {prop.bathrooms ?? "-"}</span>
+                    <span>📐 {prop.size ?? "-"} m²</span>
+                  </div>
+
+                  {(prop.phone || prop.whatsapp) && !isSavedView && (
+                    <p className="text-gray-700 text-sm mt-3">
+                      Contact: {prop.phone || ""}
+                      {prop.whatsapp ? ` (WhatsApp: ${prop.whatsapp})` : ""}
+                    </p>
+                  )}
+
+                  <p className="text-gray-400 text-xs mt-3">
+                    Posted:{" "}
+                    {prop.createdAt || prop.date_posted
+                      ? new Date(prop.createdAt || prop.date_posted).toLocaleDateString()
+                      : "—"}
+                  </p>
+
+                  <div className="mt-auto pt-4 flex gap-2">
+                    {isSavedView ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openProperty(prop);
+                        }}
+                        className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition"
+                      >
+                        View Saved Property
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleEdit(prop)}
+                          className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition"
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(prop)}
+                          className="flex-1 bg-slate-700 text-white px-3 py-2 rounded-lg hover:bg-slate-800 text-sm font-medium transition"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -219,7 +449,7 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
         <ListModal
           newProp={editProp}
           setNewProp={setEditProp}
-          listPropBackend={() => {}}
+          listPropBackend={updateProp}
           setShowListModal={setShowEditModal}
           currentUser={currentUser}
         />

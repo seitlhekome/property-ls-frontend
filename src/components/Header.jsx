@@ -22,13 +22,20 @@ export default function Header({
   const isDashboardPage = location.pathname === "/agent/dashboard";
   const isHomePage = location.pathname === "/";
 
-  return (
-    <header className="sticky top-0 z-50 bg-white shadow">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+  const primaryButtonClass =
+    "rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700";
 
-        {/* Logo */}
+  const secondaryButtonClass =
+    "rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 transition hover:border-blue-300 hover:bg-blue-50";
+
+  const neutralButtonClass =
+    "rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50";
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div
-          className="cursor-pointer"
+          className="cursor-pointer text-center lg:text-left"
           onClick={() => navigate("/")}
           role="button"
           tabIndex={0}
@@ -38,58 +45,54 @@ export default function Header({
             }
           }}
         >
-          <h1 className="text-3xl font-bold text-blue-600">Property LS</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-blue-600">
+            Property LS
+          </h1>
           <p className="text-sm text-gray-500">Lesotho Real Estate</p>
         </div>
 
-        {/* Search + Tabs (ONLY homepage) */}
-        <div className="flex flex-col md:flex-row gap-3 items-center w-full md:w-auto">
-          {isHomePage && (
-            <>
-              <div className="flex gap-2">
-                {/* Rent first */}
-                <button
-                  onClick={() => setActiveTab && setActiveTab("rent")}
-                  className={`px-4 py-2 rounded ${
-                    activeTab === "rent"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  Rent
-                </button>
+        {isHomePage && (
+          <div className="flex w-full flex-col gap-3 lg:max-w-2xl lg:flex-1 lg:flex-row lg:items-center lg:justify-center">
+            <div className="flex items-center justify-center gap-2 rounded-xl bg-gray-100 p-1">
+              <button
+                onClick={() => setActiveTab && setActiveTab("rent")}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  activeTab === "rent"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-700 hover:bg-white"
+                }`}
+              >
+                Rent
+              </button>
 
-                <button
-                  onClick={() => setActiveTab && setActiveTab("buy")}
-                  className={`px-4 py-2 rounded ${
-                    activeTab === "buy"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  Buy
-                </button>
-              </div>
+              <button
+                onClick={() => setActiveTab && setActiveTab("buy")}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  activeTab === "buy"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-700 hover:bg-white"
+                }`}
+              >
+                Buy
+              </button>
+            </div>
 
-              <input
-                type="text"
-                placeholder="Search by title or location"
-                value={searchQuery || ""}
-                onChange={(e) =>
-                  setSearchQuery && setSearchQuery(e.target.value)
-                }
-                className="border px-3 py-2 rounded w-full md:w-64"
-              />
-            </>
-          )}
-        </div>
+            <input
+              type="text"
+              placeholder="Search by title, district, or location"
+              value={searchQuery || ""}
+              onChange={(e) =>
+                setSearchQuery && setSearchQuery(e.target.value)
+              }
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 lg:w-80"
+            />
+          </div>
+        )}
 
-        {/* Actions */}
-        <div className="flex gap-2 flex-wrap justify-center">
-
+        <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
           <button
             onClick={() => setShowCalculator && setShowCalculator(true)}
-            className="px-3 py-2 bg-blue-600 text-white rounded"
+            className={primaryButtonClass}
           >
             Calculator
           </button>
@@ -98,28 +101,26 @@ export default function Header({
             onClick={() =>
               navigate("/map", { state: { properties: filteredProperties } })
             }
-            className="px-3 py-2 bg-blue-600 text-white rounded"
+            className={secondaryButtonClass}
           >
             Map
           </button>
 
           {currentUser ? (
             <>
-              {/* Agent Dashboard */}
               {isAgent && !isDashboardPage && (
                 <button
                   onClick={() => navigate("/agent/dashboard")}
-                  className="px-3 py-2 bg-blue-600 text-white rounded"
+                  className={primaryButtonClass}
                 >
                   Dashboard
                 </button>
               )}
 
-              {/* List Property */}
               {isAgent && (
                 <button
                   onClick={() => setShowListModal && setShowListModal(true)}
-                  className="px-3 py-2 border border-blue-600 text-blue-600 rounded"
+                  className={secondaryButtonClass}
                 >
                   List Property
                 </button>
@@ -127,7 +128,7 @@ export default function Header({
 
               <button
                 onClick={handleLogout}
-                className="px-3 py-2 border border-gray-400 rounded"
+                className={neutralButtonClass}
               >
                 Logout
               </button>
@@ -135,7 +136,7 @@ export default function Header({
           ) : (
             <button
               onClick={() => setShowAuthModal && setShowAuthModal(true)}
-              className="px-3 py-2 border border-blue-600 text-blue-600 rounded"
+              className={secondaryButtonClass}
             >
               Sign In
             </button>
