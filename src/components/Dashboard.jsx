@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import ListModal from "./ListModal";
 import { API_URL } from "../config";
@@ -18,6 +18,13 @@ export default function Dashboard({ currentUser, setShowListModal }) {
     currentUser?._id ||
     currentUser?.user?._id ||
     null;
+
+  const getCurrentUserName = () =>
+    currentUser?.name ||
+    currentUser?.user?.name ||
+    currentUser?.full_name ||
+    currentUser?.user?.full_name ||
+    "Agent";
 
   const fallbackImage =
     "data:image/svg+xml;charset=UTF-8," +
@@ -69,7 +76,6 @@ export default function Dashboard({ currentUser, setShowListModal }) {
     const userId = getCurrentUserId();
 
     if (!userId) {
-      console.log("No current user ID found:", currentUser);
       setMyProperties([]);
       return;
     }
@@ -86,11 +92,6 @@ export default function Dashboard({ currentUser, setShowListModal }) {
       const filtered = allProperties.filter(
         (p) => String(p.agent_id ?? p.agentId ?? "") === String(userId)
       );
-
-      console.log("Current user:", currentUser);
-      console.log("Current user ID:", userId);
-      console.log("All properties:", allProperties);
-      console.log("My dashboard properties:", filtered);
 
       setMyProperties(filtered);
     } catch (err) {
@@ -170,10 +171,6 @@ export default function Dashboard({ currentUser, setShowListModal }) {
         formData.append("agent_id", getCurrentUserId() || "");
       }
 
-      for (const pair of formData.entries()) {
-        console.log("UPDATE FORM DATA:", pair[0], pair[1]);
-      }
-
       await axios.put(
         `${API_URL}/properties/${propData.id || propData._id}`,
         formData,
@@ -194,25 +191,90 @@ export default function Dashboard({ currentUser, setShowListModal }) {
 
   const fmtPrice = (val) => `M ${Number(val || 0).toLocaleString()}`;
 
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">My Dashboard</h1>
+  const stats = useMemo(() => {
+    const total = myProperties.length;
+    const buyCount = myProperties.filter((p) => p.purpose === "buy").length;
+    const rentCount = myProperties.filter((p) => p.purpose === "rent").length;
+    const withImages = myProperties.filter((p) => normalizeImages(p.images).length > 0).length;
 
-      <div className="mb-6">
-        <button
-          onClick={() => setShowListModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          + List New Property
-        </button>
+    return { total, buyCount, rentCount, withImages };
+  }, [myProperties]);
+
+  return (
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Agent Dashboard</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Welcome, <span className="text-blue-600">{getCurrentUserName()}</span>
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Manage your property listings, update details, and keep your portfolio current.
+            </p>
+          </div>
+
+          <div>
+            <button
+              onClick={() => setShowListModal(true)}
+              className="bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+            >
+              + List New Property
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Total Listings</p>
+          <h2 className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</h2>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <p className="text-sm text-gray-500">For Sale</p>
+          <h2 className="text-2xl font-bold text-gray-900 mt-1">{stats.buyCount}</h2>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <p className="text-sm text-gray-500">For Rent</p>
+          <h2 className="text-2xl font-bold text-gray-900 mt-1">{stats.rentCount}</h2>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Listings With Images</p>
+          <h2 className="text-2xl font-bold text-gray-900 mt-1">{stats.withImages}</h2>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">My Properties</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          View, edit, and manage the properties you have listed.
+        </p>
       </div>
 
       {loadingProps ? (
-        <p>Loading properties...</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500 shadow-sm">
+          Loading your properties...
+        </div>
       ) : myProperties.length === 0 ? (
-        <p>No properties listed yet.</p>
+        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-10 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            No properties listed yet
+          </h3>
+          <p className="text-gray-500 mb-4">
+            Start by adding your first property listing to make it visible to buyers or renters.
+          </p>
+          <button
+            onClick={() => setShowListModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            List Your First Property
+          </button>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {myProperties.map((prop) => {
             const id = prop._id || prop.id;
             const imageUrl = getImageUrl(prop.images);
@@ -220,60 +282,83 @@ export default function Dashboard({ currentUser, setShowListModal }) {
             return (
               <div
                 key={id}
-                className="border rounded shadow p-4 bg-white flex flex-col"
+                className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition overflow-hidden flex flex-col"
               >
                 <img
                   src={imageUrl}
                   alt={prop.title || "Property"}
-                  className="w-full h-48 object-cover mb-2 rounded"
+                  className="w-full h-52 object-cover"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
                     e.currentTarget.src = fallbackImage;
                   }}
                 />
 
-                <h2 className="text-lg font-semibold">{prop.title}</h2>
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {prop.title || "Untitled Property"}
+                    </h3>
 
-                <p className="text-gray-600">
-                  {prop.type || "N/A"} | {prop.district || "N/A"}
-                </p>
+                    <span
+                      className={`text-xs font-medium px-2 py-1 rounded-full ${
+                        prop.purpose === "buy"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-green-100 text-green-700"
+                      }`}
+                    >
+                      {prop.purpose === "buy" ? "For Sale" : "For Rent"}
+                    </span>
+                  </div>
 
-                <p className="font-bold">
-                  {prop.purpose === "buy"
-                    ? fmtPrice(prop.price)
-                    : `M ${Number(prop.rent_price || 0).toLocaleString()}/month`}
-                </p>
-
-                {(prop.phone || prop.whatsapp) && (
-                  <p className="text-gray-700 text-sm">
-                    Contact: {prop.phone || ""}
-                    {prop.whatsapp ? ` (WhatsApp: ${prop.whatsapp})` : ""}
+                  <p className="text-blue-600 font-bold text-lg mb-1">
+                    {prop.purpose === "buy"
+                      ? fmtPrice(prop.price)
+                      : `M ${Number(prop.rent_price || 0).toLocaleString()}/month`}
                   </p>
-                )}
 
-                <p className="text-gray-500 text-sm mt-1">
-                  Posted:{" "}
-                  {prop.createdAt || prop.date_posted
-                    ? new Date(
-                        prop.createdAt || prop.date_posted
-                      ).toLocaleDateString()
-                    : "—"}
-                </p>
+                  <p className="text-sm text-gray-600">
+                    {prop.type || "N/A"} • {prop.location || "Unknown location"},{" "}
+                    {prop.district || "N/A"}
+                  </p>
 
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={() => handleEdit(prop)}
-                    className="bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 text-sm"
-                  >
-                    Edit
-                  </button>
+                  <div className="flex gap-4 text-xs text-gray-500 mt-3">
+                    <span>🛏 {prop.bedrooms ?? "-"}</span>
+                    <span>🛁 {prop.bathrooms ?? "-"}</span>
+                    <span>📐 {prop.size ?? "-"} m²</span>
+                  </div>
 
-                  <button
-                    onClick={() => handleDelete(prop)}
-                    className="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 text-sm"
-                  >
-                    Delete
-                  </button>
+                  {(prop.phone || prop.whatsapp) && (
+                    <p className="text-gray-700 text-sm mt-3">
+                      Contact: {prop.phone || ""}
+                      {prop.whatsapp ? ` (WhatsApp: ${prop.whatsapp})` : ""}
+                    </p>
+                  )}
+
+                  <p className="text-gray-400 text-xs mt-3">
+                    Posted:{" "}
+                    {prop.createdAt || prop.date_posted
+                      ? new Date(
+                          prop.createdAt || prop.date_posted
+                        ).toLocaleDateString()
+                      : "—"}
+                  </p>
+
+                  <div className="mt-auto pt-4 flex gap-2">
+                    <button
+                      onClick={() => handleEdit(prop)}
+                      className="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 text-sm font-medium transition"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(prop)}
+                      className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 text-sm font-medium transition"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             );
