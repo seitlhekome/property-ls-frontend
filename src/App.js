@@ -11,6 +11,7 @@ import ListModal from "./components/ListModal";
 import CalculatorModal from "./components/CalculatorModal";
 import Footer from "./components/Footer";
 import PropertyMap from "./components/PropertyMap";
+import SavedProperties from "./components/SavedProperties";
 
 import { API_URL } from "./config";
 
@@ -473,6 +474,7 @@ export default function App() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         filteredProperties={filteredProperties}
+        favoritesCount={favorites.length}
       />
 
       {(appError || appSuccess) && (
@@ -531,11 +533,20 @@ export default function App() {
               <p className="text-sm text-blue-700">
                 {isAgent
                   ? "Your session was restored. You can continue browsing or go back to your dashboard."
-                  : "Your session was restored. Continue browsing available properties."}
+                  : "Your session was restored. Continue browsing available properties or open your saved properties."}
               </p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {currentUser && (
+                <button
+                  onClick={() => navigate("/saved-properties")}
+                  className="rounded border border-blue-300 px-3 py-2 text-blue-700 hover:bg-blue-100"
+                >
+                  Saved Properties
+                </button>
+              )}
+
               {isAgent && (
                 <button
                   onClick={() => navigate("/agent/dashboard")}
@@ -544,6 +555,7 @@ export default function App() {
                   Go to Dashboard
                 </button>
               )}
+
               <button
                 onClick={() => setShowWelcomeBanner(false)}
                 className="rounded border border-blue-300 px-3 py-2 text-blue-700 hover:bg-blue-100"
@@ -598,12 +610,30 @@ export default function App() {
         />
 
         <Route
+          path="/saved-properties"
+          element={
+            currentUser ? (
+              <SavedProperties
+                properties={properties}
+                favorites={favorites}
+                toggleFav={toggleFav}
+                currentUser={currentUser}
+                fmt={fmt}
+              />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+
+        <Route
           path="/agent/dashboard"
           element={
             isAgent ? (
               <Dashboard
                 setShowListModal={setShowListModal}
                 currentUser={currentUser}
+                favorites={favorites}
               />
             ) : (
               <Navigate to="/" replace />
