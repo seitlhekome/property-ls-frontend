@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Header({
   currentUser,
@@ -11,33 +11,52 @@ export default function Header({
   setActiveTab,
   searchQuery,
   setSearchQuery,
-  filteredProperties, // receive filtered properties from App
+  filteredProperties,
 }) {
-  const navigate = useNavigate(); // use navigate internally
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isAgent = currentUser?.role === "agent";
+  const isDashboardPage = location.pathname === "/agent/dashboard";
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow">
       <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-
-        {/* Logo */}
-        <div>
+        <div
+          className="cursor-pointer"
+          onClick={() => navigate("/")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              navigate("/");
+            }
+          }}
+        >
           <h1 className="text-3xl font-bold text-blue-600">Property LS</h1>
           <p className="text-sm text-gray-500">Lesotho Real Estate</p>
         </div>
 
-        {/* Buy / Rent + Search */}
         <div className="flex flex-col md:flex-row gap-3 items-center w-full md:w-auto">
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab && setActiveTab("buy")}
-              className={`px-4 py-2 rounded ${activeTab === "buy" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
+              className={`px-4 py-2 rounded ${
+                activeTab === "buy"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
             >
               Buy
             </button>
 
             <button
               onClick={() => setActiveTab && setActiveTab("rent")}
-              className={`px-4 py-2 rounded ${activeTab === "rent" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
+              className={`px-4 py-2 rounded ${
+                activeTab === "rent"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
             >
               Rent
             </button>
@@ -52,8 +71,7 @@ export default function Header({
           />
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-center">
           <button
             onClick={() => setShowCalculator && setShowCalculator(true)}
             className="px-3 py-2 bg-blue-600 text-white rounded"
@@ -61,7 +79,6 @@ export default function Header({
             Calculator
           </button>
 
-          {/* Map button: pass current filtered properties */}
           <button
             onClick={() =>
               navigate("/map", { state: { properties: filteredProperties } })
@@ -73,7 +90,16 @@ export default function Header({
 
           {currentUser ? (
             <>
-              {currentUser.role === "agent" && (
+              {isAgent && !isDashboardPage && (
+                <button
+                  onClick={() => navigate("/agent/dashboard")}
+                  className="px-3 py-2 bg-blue-600 text-white rounded"
+                >
+                  Dashboard
+                </button>
+              )}
+
+              {isAgent && (
                 <button
                   onClick={() => setShowListModal && setShowListModal(true)}
                   className="px-3 py-2 border border-blue-600 text-blue-600 rounded"
