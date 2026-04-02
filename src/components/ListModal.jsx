@@ -4,42 +4,83 @@ export default function ListModal({
   newProp,
   setNewProp,
   listPropBackend,
-  loading,
+  loading = false,
   setShowListModal,
-  currentUser, // ✅ receive currentUser for agent_id
+  currentUser,
 }) {
   const [imagesPreview, setImagesPreview] = useState([]);
   const [locationStatus, setLocationStatus] = useState("");
 
-  // Initialize images preview if there are existing images
-  useEffect(() => {
-    if (newProp?.images && newProp.images.length > 0) {
-      setImagesPreview(
-        newProp.images.map((f) =>
-          typeof f === "string" ? f : URL.createObjectURL(f)
-        )
-      );
+  const isEditMode = Boolean(newProp?.id || newProp?._id);
+
+  const getPreviewUrl = (img) => {
+    if (!img) return null;
+
+    if (typeof img === "string" && img.trim()) {
+      return img;
     }
-  }, [newProp]);
+
+    if (img instanceof File || img instanceof Blob) {
+      return URL.createObjectURL(img);
+    }
+
+    if (typeof img === "object" && img.url) {
+      return img.url;
+    }
+
+    return null;
+  };
+
+  useEffect(() => {
+    if (!newProp?.images || newProp.images.length === 0) {
+      setImagesPreview([]);
+      return;
+    }
+
+    const previews = newProp.images.map(getPreviewUrl).filter(Boolean);
+    setImagesPreview(previews);
+
+    return () => {
+      previews.forEach((src) => {
+        if (typeof src === "string" && src.startsWith("blob:")) {
+          URL.revokeObjectURL(src);
+        }
+      });
+    };
+  }, [newProp?.images]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // Ensure lat/lng remain numbers
-    if (name === "lat" || name === "lng") {
+    if (["lat", "lng"].includes(name)) {
       setNewProp((prev) => ({
         ...prev,
-        [name]: value === "" ? null : Number(value),
+        [name]: value === "" ? "" : Number(value),
       }));
-    } else {
-      setNewProp((prev) => ({ ...prev, [name]: value }));
+      return;
     }
+
+    if (["price", "rent_price", "bedrooms", "bathrooms", "size"].includes(name)) {
+      setNewProp((prev) => ({
+        ...prev,
+        [name]: value === "" ? "" : Number(value),
+      }));
+      return;
+    }
+
+    setNewProp((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleImages = (e) => {
-    const files = Array.from(e.target.files);
-    setNewProp((prev) => ({ ...prev, images: files }));
-    setImagesPreview(files.map((f) => URL.createObjectURL(f)));
+    const files = Array.from(e.target.files || []);
+
+    setNewProp((prev) => ({
+      ...prev,
+      images: files,
+    }));
   };
 
   const handleSubmit = (e) => {
@@ -48,23 +89,28 @@ export default function ListModal({
     if (!newProp.title) return alert("Title is required");
     if (!newProp.district) return alert("District is required");
     if (!newProp.location) return alert("Location is required");
-    if (newProp.purpose === "buy" && !newProp.price)
+    if (newProp.purpose === "buy" && !newProp.price) {
       return alert("Price is required");
-    if (newProp.purpose === "rent" && !newProp.rent_price)
+    }
+    if (newProp.purpose === "rent" && !newProp.rent_price) {
       return alert("Rent price is required");
+    }
 
-    // Pass lat/lng as numbers and include agent_id
     const propData = {
       ...newProp,
-      lat: newProp.lat ? Number(newProp.lat) : null,
-      lng: newProp.lng ? Number(newProp.lng) : null,
-      agent_id: currentUser?.id || null, // ✅ attach agent_id
+      lat: newProp.lat === "" ? null : newProp.lat,
+      lng: newProp.lng === "" ? null : newProp.lng,
+      agent_id:
+        currentUser?.id ||
+        currentUser?.user?.id ||
+        currentUser?._id ||
+        currentUser?.user?._id ||
+        null,
     };
 
-    listPropBackend(propData, newProp.images);
+    listPropBackend(propData, Array.isArray(newProp.images) ? newProp.images : []);
   };
 
-  // Manual location trigger
   const useMyLocation = () => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your device");
@@ -93,16 +139,17 @@ export default function ListModal({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg w-full max-w-3xl overflow-y-auto max-h-[90vh]">
-        <h2 className="text-2xl font-bold mb-4">List New Property</h2>
+        <h2 className="text-2xl font-bold mb-4">
+          {isEditMode ? "Edit Property" : "List New Property"}
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Title */}
           <div>
             <label className="font-semibold mb-1 block">Title</label>
             <input
               type="text"
               name="title"
-              value={newProp.title}
+              value={newProp.title || ""}
               onChange={handleChange}
               className="w-full border px-3 py-2 rounded"
               placeholder="Enter property title"
@@ -110,13 +157,12 @@ export default function ListModal({
             />
           </div>
 
-          {/* Type & Purpose */}
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="font-semibold mb-1 block">Property Type</label>
               <select
                 name="type"
-                value={newProp.type}
+                value={newProp.type || "House"}
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
               >
@@ -129,7 +175,7 @@ export default function ListModal({
               <label className="font-semibold mb-1 block">Purpose</label>
               <select
                 name="purpose"
-                value={newProp.purpose}
+                value={newProp.purpose || "buy"}
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
               >
@@ -139,13 +185,12 @@ export default function ListModal({
             </div>
           </div>
 
-          {/* District & Location */}
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="font-semibold mb-1 block">District</label>
               <select
                 name="district"
-                value={newProp.district}
+                value={newProp.district || "Maseru"}
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
               >
@@ -169,7 +214,7 @@ export default function ListModal({
               <input
                 type="text"
                 name="location"
-                value={newProp.location}
+                value={newProp.location || ""}
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
                 required
@@ -177,7 +222,6 @@ export default function ListModal({
             </div>
           </div>
 
-          {/* Coordinates */}
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <label className="font-semibold mb-1 block">Latitude (Optional)</label>
@@ -218,14 +262,13 @@ export default function ListModal({
             <p className="text-sm text-gray-600">{locationStatus}</p>
           )}
 
-          {/* Price / Rent */}
           {newProp.purpose === "buy" && (
             <div>
               <label className="font-semibold mb-1 block">Price (Buy)</label>
               <input
                 type="number"
                 name="price"
-                value={newProp.price}
+                value={newProp.price ?? ""}
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
                 min={0}
@@ -239,7 +282,7 @@ export default function ListModal({
               <input
                 type="number"
                 name="rent_price"
-                value={newProp.rent_price}
+                value={newProp.rent_price ?? ""}
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
                 min={0}
@@ -247,7 +290,6 @@ export default function ListModal({
             </div>
           )}
 
-          {/* Bedrooms / Bathrooms */}
           {newProp.type === "House" && (
             <div className="flex gap-2">
               <div className="flex-1">
@@ -255,7 +297,7 @@ export default function ListModal({
                 <input
                   type="number"
                   name="bedrooms"
-                  value={newProp.bedrooms}
+                  value={newProp.bedrooms ?? ""}
                   onChange={handleChange}
                   className="w-full border px-3 py-2 rounded"
                   min={0}
@@ -266,7 +308,7 @@ export default function ListModal({
                 <input
                   type="number"
                   name="bathrooms"
-                  value={newProp.bathrooms}
+                  value={newProp.bathrooms ?? ""}
                   onChange={handleChange}
                   className="w-full border px-3 py-2 rounded"
                   min={0}
@@ -281,7 +323,7 @@ export default function ListModal({
               <input
                 type="number"
                 name="size"
-                value={newProp.size}
+                value={newProp.size ?? ""}
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
                 min={0}
@@ -289,14 +331,13 @@ export default function ListModal({
             </div>
           )}
 
-          {/* Contact Numbers */}
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="font-semibold mb-1 block">Phone Number</label>
               <input
                 type="text"
                 name="phone"
-                value={newProp.phone}
+                value={newProp.phone || ""}
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
               />
@@ -306,16 +347,17 @@ export default function ListModal({
               <input
                 type="text"
                 name="whatsapp"
-                value={newProp.whatsapp}
+                value={newProp.whatsapp || ""}
                 onChange={handleChange}
                 className="w-full border px-3 py-2 rounded"
               />
             </div>
           </div>
 
-          {/* Images */}
           <div>
-            <label className="font-semibold mb-1 block">Images</label>
+            <label className="font-semibold mb-1 block">
+              Images {isEditMode ? "(choose new ones to replace current images)" : ""}
+            </label>
             <input
               type="file"
               multiple
@@ -332,12 +374,14 @@ export default function ListModal({
                   src={src}
                   alt="preview"
                   className="w-20 h-20 object-cover rounded"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
                 />
               ))}
             </div>
           )}
 
-          {/* Buttons */}
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -351,7 +395,9 @@ export default function ListModal({
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded"
             >
-              {loading ? "Listing..." : "List Property"}
+              {loading
+                ? (isEditMode ? "Updating..." : "Listing...")
+                : (isEditMode ? "Update Property" : "List Property")}
             </button>
           </div>
         </form>
