@@ -532,30 +532,12 @@ export default function App() {
               </p>
               <p className="text-sm text-blue-700">
                 {isAgent
-                  ? "Your session was restored. You can continue browsing or go back to your dashboard."
-                  : "Your session was restored. Continue browsing available properties or open your saved properties."}
+                  ? "Your session was restored. You can continue managing your listings."
+                  : "Your session was restored. Continue browsing available properties."}
               </p>
             </div>
 
-            <div className="flex gap-2 flex-wrap">
-              {currentUser && (
-                <button
-                  onClick={() => navigate("/saved-properties")}
-                  className="rounded border border-blue-300 px-3 py-2 text-blue-700 hover:bg-blue-100"
-                >
-                  Saved Properties
-                </button>
-              )}
-
-              {isAgent && (
-                <button
-                  onClick={() => navigate("/agent/dashboard")}
-                  className="rounded bg-blue-600 px-3 py-2 text-white hover:bg-blue-700"
-                >
-                  Go to Dashboard
-                </button>
-              )}
-
+            <div>
               <button
                 onClick={() => setShowWelcomeBanner(false)}
                 className="rounded border border-blue-300 px-3 py-2 text-blue-700 hover:bg-blue-100"
