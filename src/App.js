@@ -24,14 +24,21 @@ export default function App() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showListModal, setShowListModal] = useState(false);
-  const [sessionRestored, setSessionRestored] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
+
+  // ================= FEEDBACK STATE =================
+  const [appError, setAppError] = useState("");
+  const [appSuccess, setAppSuccess] = useState("");
 
   // ================= DATA STATE =================
   const [currentUser, setCurrentUser] = useState(null);
   const [properties, setProperties] = useState([]);
   const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading] = useState(false);
+
+  // ================= LOADING STATE =================
+  const [isFetchingProperties, setIsFetchingProperties] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [isListingProperty, setIsListingProperty] = useState(false);
 
   // ================= AUTH FORM =================
   const [authIsSignup, setAuthIsSignup] = useState(true);
@@ -44,29 +51,67 @@ export default function App() {
   });
 
   // ================= NEW PROPERTY =================
-  const initialPropertyState = {
-    title: "",
-    price: "",
-    rent_price: "",
-    purpose: "buy",
-    type: "House",
-    district: "Maseru",
-    location: "",
-    bedrooms: "",
-    bathrooms: "",
-    size: "",
-    description: "",
-    images: [],
-    phone: "",
-    whatsapp: "",
-    lat: "",
-    lng: "",
-  };
+  const initialPropertyState = useMemo(
+    () => ({
+      title: "",
+      price: "",
+      rent_price: "",
+      purpose: "buy",
+      type: "House",
+      district: "Maseru",
+      location: "",
+      bedrooms: "",
+      bathrooms: "",
+      size: "",
+      description: "",
+      images: [],
+      phone: "",
+      whatsapp: "",
+      lat: "",
+      lng: "",
+    }),
+    []
+  );
 
   const [newProp, setNewProp] = useState(initialPropertyState);
 
   // ================= HELPERS =================
   const fmt = (v) => `M ${Number(v || 0).toLocaleString()}`;
+
+  const clearFeedback = useCallback(() => {
+    setAppError("");
+    setAppSuccess("");
+  }, []);
+
+  const showError = useCallback((message) => {
+    setAppSuccess("");
+    setAppError(message || "Something went wrong");
+  }, []);
+
+  const showSuccess = useCallback((message) => {
+    setAppError("");
+    setAppSuccess(message || "");
+  }, []);
+
+  const getErrorMessage = useCallback((err, fallback = "Something went wrong") => {
+    if (err?.code === "ECONNABORTED") {
+      return "The request took too long. Please try again.";
+    }
+
+    if (err?.response?.data?.error) {
+      return err.response.data.error;
+    }
+
+    if (err?.response?.data?.message) {
+      return err.response.data.message;
+    }
+
+    if (err?.message) {
+      return err.message;
+    }
+
+    return fallback;
+  }, []);
 
   const getCurrentUserId = useCallback(() => {
     return (
@@ -109,7 +154,7 @@ export default function App() {
     };
   }, []);
 
-  const resetAuthForm = () => {
+  const resetAuthForm = useCallback(() => {
     setAuthForm({
       name: "",
       email: "",
@@ -117,29 +162,48 @@ export default function App() {
       role: "user",
       whatsapp: "",
     });
-  };
+  }, []);
 
-  const resetNewPropertyForm = () => {
+  const resetNewPropertyForm = useCallback(() => {
     setNewProp(initialPropertyState);
-  };
+  }, [initialPropertyState]);
 
-  // ================= FAVORITES =================
-  const toggleFav = (id) => {
-    if (!currentUser) {
-      alert("Please sign in to save properties");
-      return;
+  const saveSession = useCallback((userData) => {
+    if (!userData?.token) {
+      throw new Error("Missing authentication token");
     }
 
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", userData.token);
+  }, []);
+
+  const clearSession = useCallback(() => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+  }, []);
+
+  // ================= FAVORITES =================
+  const toggleFav = useCallback(
+    (id) => {
+      if (!currentUser) {
+        showError("Please sign in to save properties.");
+        return;
+      }
+
+      clearFeedback();
+      setFavorites((prev) =>
+        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      );
+    },
+    [currentUser, showError, clearFeedback]
+  );
 
   useEffect(() => {
     try {
       const storedFavorites = localStorage.getItem("favorites");
       if (storedFavorites) {
-        setFavorites(JSON.parse(storedFavorites));
+        const parsedFavorites = JSON.parse(storedFavorites);
+        setFavorites(Array.isArray(parsedFavorites) ? parsedFavorites : []);
       }
     } catch (error) {
       console.error("Failed to load favorites:", error);
@@ -148,29 +212,36 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("favorites", JSON.stringify(favorites));
+    try {
+      localStorage.setItem("favorites", JSON.stringify(favorites));
+    } catch (error) {
+      console.error("Failed to save favorites:", error);
+    }
   }, [favorites]);
 
   // ================= LOAD USER SESSION =================
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
+    try {
+      const storedUser = localStorage.getItem("user");
+      const storedToken = localStorage.getItem("token");
 
-    if (storedUser && storedToken) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setCurrentUser(parsedUser);
-        setSessionRestored(true);
-        setShowWelcomeBanner(true);
-      } catch (error) {
-        console.error("Failed to parse stored user:", error);
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
+      if (!storedUser || !storedToken) return;
+
+      const parsedUser = JSON.parse(storedUser);
+
+      if (!parsedUser) {
+        clearSession();
+        return;
       }
-    }
-  }, []);
 
-  // hide welcome banner after some seconds
+      setCurrentUser(parsedUser);
+      setShowWelcomeBanner(true);
+    } catch (error) {
+      console.error("Failed to restore stored session:", error);
+      clearSession();
+    }
+  }, [clearSession]);
+
   useEffect(() => {
     if (!showWelcomeBanner) return;
 
@@ -181,26 +252,45 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [showWelcomeBanner]);
 
+  useEffect(() => {
+    if (!appError && !appSuccess) return;
+
+    const timer = setTimeout(() => {
+      setAppError("");
+      setAppSuccess("");
+    }, 4500);
+
+    return () => clearTimeout(timer);
+  }, [appError, appSuccess]);
+
   // ================= FETCH PROPERTIES =================
-  const fetchProperties = useCallback(async () => {
-    setLoading(true);
+  const fetchProperties = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!silent) {
+        clearFeedback();
+      }
 
-    try {
-      const res = await axios.get(`${API_URL}/properties`, {
-        timeout: 15000,
-      });
+      setIsFetchingProperties(true);
 
-      const formatted = Array.isArray(res.data)
-        ? res.data.map(normalizeProperty)
-        : [];
+      try {
+        const res = await axios.get(`${API_URL}/properties`, {
+          timeout: 15000,
+        });
 
-      setProperties(formatted);
-    } catch (err) {
-      console.error("Failed to fetch properties:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [normalizeProperty]);
+        const formatted = Array.isArray(res.data)
+          ? res.data.map(normalizeProperty)
+          : [];
+
+        setProperties(formatted);
+      } catch (err) {
+        console.error("Failed to fetch properties:", err);
+        showError(getErrorMessage(err, "Failed to load properties."));
+      } finally {
+        setIsFetchingProperties(false);
+      }
+    },
+    [normalizeProperty, clearFeedback, showError, getErrorMessage]
+  );
 
   useEffect(() => {
     fetchProperties();
@@ -212,7 +302,8 @@ export default function App() {
       throw new Error("Enter email and password");
     }
 
-    setLoading(true);
+    clearFeedback();
+    setIsAuthLoading(true);
 
     try {
       const res = await axios.post(
@@ -225,24 +316,23 @@ export default function App() {
       );
 
       setCurrentUser(res.data);
-      localStorage.setItem("user", JSON.stringify(res.data));
-      localStorage.setItem("token", res.data.token);
+      saveSession(res.data);
 
       setShowAuthModal(false);
-      setSessionRestored(false);
       setShowWelcomeBanner(false);
       resetAuthForm();
+      showSuccess("Logged in successfully.");
 
-      await fetchProperties();
+      await fetchProperties({ silent: true });
 
       if ((res.data.role || res.data.user?.role) === "agent") {
         navigate("/agent/dashboard");
       }
     } catch (err) {
       console.error("Login failed:", err);
-      throw new Error(err.response?.data?.error || "Login failed");
+      throw new Error(getErrorMessage(err, "Login failed"));
     } finally {
-      setLoading(false);
+      setIsAuthLoading(false);
     }
   };
 
@@ -251,7 +341,8 @@ export default function App() {
       throw new Error("Fill all required fields");
     }
 
-    setLoading(true);
+    clearFeedback();
+    setIsAuthLoading(true);
 
     try {
       const res = await axios.post(`${API_URL}/auth/signup`, authForm, {
@@ -259,24 +350,23 @@ export default function App() {
       });
 
       setCurrentUser(res.data);
-      localStorage.setItem("user", JSON.stringify(res.data));
-      localStorage.setItem("token", res.data.token);
+      saveSession(res.data);
 
       setShowAuthModal(false);
-      setSessionRestored(false);
       setShowWelcomeBanner(false);
       resetAuthForm();
+      showSuccess("Account created successfully.");
 
-      await fetchProperties();
+      await fetchProperties({ silent: true });
 
       if ((res.data.role || res.data.user?.role) === "agent") {
         navigate("/agent/dashboard");
       }
     } catch (err) {
       console.error("Signup failed:", err);
-      throw new Error(err.response?.data?.error || "Signup failed");
+      throw new Error(getErrorMessage(err, "Signup failed"));
     } finally {
-      setLoading(false);
+      setIsAuthLoading(false);
     }
   };
 
@@ -285,11 +375,12 @@ export default function App() {
     const token = localStorage.getItem("token");
 
     if (!token || getCurrentUserRole() !== "agent") {
-      alert("Only logged-in agents can list properties");
+      showError("Only logged-in agents can list properties.");
       return;
     }
 
-    setLoading(true);
+    clearFeedback();
+    setIsListingProperty(true);
 
     try {
       const fd = new FormData();
@@ -325,23 +416,24 @@ export default function App() {
 
       setShowListModal(false);
       resetNewPropertyForm();
-      await fetchProperties();
+      showSuccess("Property listed successfully.");
+      await fetchProperties({ silent: true });
     } catch (err) {
       console.error("Failed to list property:", err);
-      alert(err.response?.data?.error || "Failed to list property");
+      showError(getErrorMessage(err, "Failed to list property."));
     } finally {
-      setLoading(false);
+      setIsListingProperty(false);
     }
   };
 
   // ================= LOGOUT =================
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setCurrentUser(null);
     setShowWelcomeBanner(false);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
+    clearSession();
+    showSuccess("Logged out successfully.");
     navigate("/");
-  };
+  }, [clearSession, navigate, showSuccess]);
 
   // ================= FILTER =================
   const filteredProperties = useMemo(() => {
@@ -363,6 +455,7 @@ export default function App() {
     });
   }, [properties, activeTab, searchQuery]);
 
+  const currentUserId = getCurrentUserId();
   const isAgent = getCurrentUserRole() === "agent";
   const isHomePage = location.pathname === "/";
 
@@ -382,12 +475,58 @@ export default function App() {
         filteredProperties={filteredProperties}
       />
 
+      {(appError || appSuccess) && (
+        <div className="max-w-7xl mx-auto px-4 pt-4">
+          {appError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-red-800">
+                    Something needs attention
+                  </p>
+                  <p className="text-sm text-red-700">{appError}</p>
+                </div>
+                <button
+                  onClick={() => setAppError("")}
+                  className="text-sm font-medium text-red-700 hover:text-red-900"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          {appSuccess && (
+            <div className="mt-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-green-800">Success</p>
+                  <p className="text-sm text-green-700">{appSuccess}</p>
+                </div>
+                <button
+                  onClick={() => setAppSuccess("")}
+                  className="text-sm font-medium text-green-700 hover:text-green-900"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {showWelcomeBanner && currentUser && isHomePage && (
         <div className="max-w-7xl mx-auto px-4 pt-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <div className="flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-blue-800">
-                Welcome back{currentUser?.name ? `, ${currentUser.name}` : ""}.
+                Welcome back
+                {currentUser?.name
+                  ? `, ${currentUser.name}`
+                  : currentUser?.user?.name
+                  ? `, ${currentUser.user.name}`
+                  : ""}
+                .
               </p>
               <p className="text-sm text-blue-700">
                 {isAgent
@@ -400,14 +539,14 @@ export default function App() {
               {isAgent && (
                 <button
                   onClick={() => navigate("/agent/dashboard")}
-                  className="px-3 py-2 bg-blue-600 text-white rounded"
+                  className="rounded bg-blue-600 px-3 py-2 text-white hover:bg-blue-700"
                 >
                   Go to Dashboard
                 </button>
               )}
               <button
                 onClick={() => setShowWelcomeBanner(false)}
-                className="px-3 py-2 border border-blue-300 text-blue-700 rounded"
+                className="rounded border border-blue-300 px-3 py-2 text-blue-700 hover:bg-blue-100"
               >
                 Dismiss
               </button>
@@ -431,7 +570,7 @@ export default function App() {
                 })
               }
               currentUser={currentUser}
-              loading={loading}
+              loading={isFetchingProperties}
             />
           }
         />
@@ -453,6 +592,7 @@ export default function App() {
               favorites={favorites}
               toggleFav={toggleFav}
               currentUser={currentUser}
+              currentUserId={currentUserId}
             />
           }
         />
@@ -480,7 +620,7 @@ export default function App() {
           setAuthForm={setAuthForm}
           login={handleLogin}
           signup={handleSignup}
-          loading={loading}
+          loading={isAuthLoading}
           setShowAuthModal={setShowAuthModal}
         />
       )}
@@ -490,7 +630,7 @@ export default function App() {
           newProp={newProp}
           setNewProp={setNewProp}
           listPropBackend={listProp}
-          loading={loading}
+          loading={isListingProperty}
           setShowListModal={setShowListModal}
           currentUser={currentUser}
         />
