@@ -86,30 +86,6 @@ export default function PropertyList({
                   e.currentTarget.src = "/no-image.png";
                 }}
               />
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFav(propertyId);
-                }}
-                className={`absolute top-3 right-3 flex h-10 w-10 items-center justify-center rounded-full border bg-white/95 shadow-sm transition ${
-                  !isLoggedIn
-                    ? "border-gray-200 text-gray-400"
-                    : isSaved
-                    ? "border-red-200 text-red-500"
-                    : "border-gray-200 text-gray-500 hover:text-red-500"
-                }`}
-                aria-label={isSaved ? "Saved property" : "Save property"}
-                title={
-                  !isLoggedIn
-                    ? "Sign in to save properties"
-                    : isSaved
-                    ? "Saved"
-                    : "Save property"
-                }
-              >
-                <span className="text-lg">{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
-              </button>
             </div>
 
             <div className="p-4 flex flex-col flex-1">
@@ -150,18 +126,30 @@ export default function PropertyList({
               )}
 
               <div className="mt-auto flex justify-between items-center gap-2 pt-4">
-                <div
-                  className={`flex items-center gap-1 text-sm font-medium ${
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFav(propertyId);
+                  }}
+                  className={`inline-flex items-center gap-1 text-sm font-medium transition ${
                     !isLoggedIn
-                      ? "text-gray-400"
+                      ? "text-gray-400 hover:text-gray-500"
                       : isSaved
-                      ? "text-red-600"
-                      : "text-gray-700"
+                      ? "text-red-600 hover:text-red-700"
+                      : "text-gray-700 hover:text-red-600"
                   }`}
+                  aria-label={isSaved ? "Saved property" : "Save property"}
+                  title={
+                    !isLoggedIn
+                      ? "Sign in to save properties"
+                      : isSaved
+                      ? "Saved"
+                      : "Save property"
+                  }
                 >
                   <span>{isSaved && isLoggedIn ? "Saved" : "Save"}</span>
                   <span className="text-base">{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
-                </div>
+                </button>
 
                 <button
                   onClick={(e) => {

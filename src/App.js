@@ -30,6 +30,7 @@ export default function App() {
   // ================= FEEDBACK STATE =================
   const [appError, setAppError] = useState("");
   const [appSuccess, setAppSuccess] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
 
   // ================= DATA STATE =================
   const [currentUser, setCurrentUser] = useState(null);
@@ -92,6 +93,12 @@ export default function App() {
   const showSuccess = useCallback((message) => {
     setAppError("");
     setAppSuccess(message || "");
+  }, []);
+
+  const showAuthNotice = useCallback((message = "Please sign in to save properties.") => {
+    setAuthNotice(message);
+    setAppError("");
+    setAppSuccess("");
   }, []);
 
   const getErrorMessage = useCallback((err, fallback = "Something went wrong") => {
@@ -187,16 +194,18 @@ export default function App() {
   const toggleFav = useCallback(
     (id) => {
       if (!currentUser) {
-        showError("Please sign in to save properties.");
+        showAuthNotice("Please sign in to save properties.");
         return;
       }
 
+      setAuthNotice("");
       clearFeedback();
+
       setFavorites((prev) =>
         prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
       );
     },
-    [currentUser, showError, clearFeedback]
+    [currentUser, clearFeedback, showAuthNotice]
   );
 
   useEffect(() => {
@@ -236,6 +245,7 @@ export default function App() {
       }
 
       setCurrentUser(parsedUser);
+      setAuthNotice("");
       setShowWelcomeBanner(true);
     } catch (error) {
       console.error("Failed to restore stored session:", error);
@@ -319,6 +329,7 @@ export default function App() {
       setCurrentUser(res.data);
       saveSession(res.data);
 
+      setAuthNotice("");
       setShowAuthModal(false);
       setShowWelcomeBanner(false);
       resetAuthForm();
@@ -353,6 +364,7 @@ export default function App() {
       setCurrentUser(res.data);
       saveSession(res.data);
 
+      setAuthNotice("");
       setShowAuthModal(false);
       setShowWelcomeBanner(false);
       resetAuthForm();
@@ -460,7 +472,6 @@ export default function App() {
   const isAgent = getCurrentUserRole() === "agent";
   const isHomePage = location.pathname === "/";
 
-  // ================= RENDER =================
   return (
     <div className="min-h-screen bg-gray-50">
       <Header
@@ -475,6 +486,37 @@ export default function App() {
         setSearchQuery={setSearchQuery}
         filteredProperties={filteredProperties}
       />
+
+      {authNotice && (
+        <div className="max-w-7xl mx-auto px-4 pt-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-amber-800">
+                  Sign in required
+                </p>
+                <p className="text-sm text-amber-700">{authNotice}</p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="rounded border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100"
+                >
+                  Sign In
+                </button>
+
+                <button
+                  onClick={() => setAuthNotice("")}
+                  className="rounded border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {(appError || appSuccess) && (
         <div className="max-w-7xl mx-auto px-4 pt-4">
