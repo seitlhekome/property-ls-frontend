@@ -96,9 +96,9 @@ export default function App() {
   }, []);
 
   const showAuthNotice = useCallback((message = "Please sign in to save properties.") => {
-    setAuthNotice(message);
     setAppError("");
     setAppSuccess("");
+    setAuthNotice(message);
   }, []);
 
   const getErrorMessage = useCallback((err, fallback = "Something went wrong") => {
@@ -273,6 +273,16 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, [appError, appSuccess]);
+
+  useEffect(() => {
+    if (!authNotice) return;
+
+    const timer = setTimeout(() => {
+      setAuthNotice("");
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [authNotice]);
 
   // ================= FETCH PROPERTIES =================
   const fetchProperties = useCallback(
@@ -488,27 +498,27 @@ export default function App() {
       />
 
       {authNotice && (
-        <div className="max-w-7xl mx-auto px-4 pt-4">
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+        <div className="fixed right-4 top-24 z-[60] w-[calc(100%-2rem)] max-w-md">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 shadow-lg">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-amber-800">
+                <p className="text-sm font-semibold text-red-800">
                   Sign in required
                 </p>
-                <p className="text-sm text-amber-700">{authNotice}</p>
+                <p className="text-sm text-red-700">{authNotice}</p>
               </div>
 
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowAuthModal(true)}
-                  className="rounded border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100"
+                  className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
                 >
                   Sign In
                 </button>
 
                 <button
                   onClick={() => setAuthNotice("")}
-                  className="rounded border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100"
+                  className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
                 >
                   Dismiss
                 </button>

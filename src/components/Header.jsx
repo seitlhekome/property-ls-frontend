@@ -20,7 +20,6 @@ export default function Header({
     currentUser?.role === "agent" || currentUser?.user?.role === "agent";
 
   const isDashboardPage = location.pathname === "/agent/dashboard";
-  const isSavedPage = location.pathname === "/saved-properties";
   const isHomePage = location.pathname === "/";
 
   const primaryButtonClass =
@@ -109,15 +108,6 @@ export default function Header({
 
           {currentUser ? (
             <>
-              {!isSavedPage && (
-                <button
-                  onClick={() => navigate("/saved-properties")}
-                  className={secondaryButtonClass}
-                >
-                  Saved Properties
-                </button>
-              )}
-
               {isAgent && !isDashboardPage && (
                 <button
                   onClick={() => navigate("/agent/dashboard")}
