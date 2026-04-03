@@ -13,36 +13,42 @@ export default function ListModal({
 
   const isEditMode = Boolean(newProp?.id || newProp?._id);
 
-  // ================= PREVIEW =================
   const getPreviewUrl = (img) => {
     if (!img) return null;
 
-    if (typeof img === "string" && img.trim()) return img;
+    if (typeof img === "string" && img.trim()) {
+      return img;
+    }
 
-    if (img instanceof File) return URL.createObjectURL(img);
+    if (img instanceof File || img instanceof Blob) {
+      return URL.createObjectURL(img);
+    }
 
-    if (img?.url) return img.url;
+    if (typeof img === "object" && img.url) {
+      return img.url;
+    }
 
     return null;
   };
 
   useEffect(() => {
-    if (!newProp?.images) return;
+    if (!newProp?.images || newProp.images.length === 0) {
+      setImagesPreview([]);
+      return;
+    }
 
-    const previews = newProp.images
-      .map(getPreviewUrl)
-      .filter(Boolean);
-
+    const previews = newProp.images.map(getPreviewUrl).filter(Boolean);
     setImagesPreview(previews);
 
     return () => {
       previews.forEach((src) => {
-        if (src.startsWith("blob:")) URL.revokeObjectURL(src);
+        if (typeof src === "string" && src.startsWith("blob:")) {
+          URL.revokeObjectURL(src);
+        }
       });
     };
-  }, [newProp.images]);
+  }, [newProp?.images]);
 
-  // ================= INPUT =================
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -68,29 +74,27 @@ export default function ListModal({
     }));
   };
 
-  // ================= ADD IMAGES =================
   const handleImages = (e) => {
     const files = Array.from(e.target.files || []);
 
     setNewProp((prev) => ({
       ...prev,
-      images: [...(prev.images || []), ...files],
+      images: files,
     }));
   };
 
-  // ================= REMOVE IMAGE =================
-  const removeImage = (index) => {
-    setNewProp((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
-  };
-
-  // ================= SUBMIT =================
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!newProp.title) return alert("Title is required");
+    if (!newProp.district) return alert("District is required");
+    if (!newProp.location) return alert("Location is required");
+    if (newProp.purpose === "buy" && !newProp.price) {
+      return alert("Price is required");
+    }
+    if (newProp.purpose === "rent" && !newProp.rent_price) {
+      return alert("Rent price is required");
+    }
 
     const propData = {
       ...newProp,
@@ -100,14 +104,21 @@ export default function ListModal({
         currentUser?.id ||
         currentUser?.user?.id ||
         currentUser?._id ||
-        currentUser?.user?._id,
+        currentUser?.user?._id ||
+        null,
     };
 
-    listPropBackend(propData, newProp.images || []);
+    listPropBackend(propData, Array.isArray(newProp.images) ? newProp.images : []);
   };
 
-  // ================= LOCATION =================
   const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your device");
+      return;
+    }
+
+    setLocationStatus("Fetching your location...");
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setNewProp((prev) => ({
@@ -117,87 +128,260 @@ export default function ListModal({
         }));
         setLocationStatus("Location captured ✔");
       },
-      () => alert("Location error"),
+      () => {
+        setLocationStatus("Unable to access your location");
+        alert("Unable to access your location");
+      },
       { enableHighAccuracy: true }
     );
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg w-full max-w-3xl overflow-y-auto max-h-[90vh]">
         <h2 className="text-2xl font-bold mb-4">
-          {isEditMode ? "Edit Property" : "List Property"}
+          {isEditMode ? "Edit Property" : "List New Property"}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-
-          {/* TITLE */}
-          <input
-            name="title"
-            value={newProp.title || ""}
-            onChange={handleChange}
-            placeholder="Property title"
-            className="w-full border px-3 py-2 rounded"
-            required
-          />
-
-          {/* IMAGE UPLOAD */}
           <div>
-            <label className="font-semibold block mb-2">
-              Images {isEditMode && "(you can remove or add new ones)"}
-            </label>
+            <label className="font-semibold mb-1 block">Title</label>
+            <input
+              type="text"
+              name="title"
+              value={newProp.title || ""}
+              onChange={handleChange}
+              className="w-full border px-3 py-2 rounded"
+              placeholder="Enter property title"
+              required
+            />
+          </div>
 
-            <input type="file" multiple accept="image/*" onChange={handleImages} />
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Property Type</label>
+              <select
+                name="type"
+                value={newProp.type || "House"}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+              >
+                <option>House</option>
+                <option>Land</option>
+              </select>
+            </div>
 
-            {/* PREVIEW GRID */}
-            <div className="grid grid-cols-3 gap-3 mt-3">
-              {imagesPreview.map((src, i) => (
-                <div key={i} className="relative">
-                  <img
-                    src={src}
-                    className="w-full h-24 object-cover rounded-lg"
-                    alt="preview"
-                  />
-
-                  {/* REMOVE BUTTON */}
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 py-1 rounded hover:bg-red-700"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Purpose</label>
+              <select
+                name="purpose"
+                value={newProp.purpose || "buy"}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+              >
+                <option value="buy">Buy</option>
+                <option value="rent">Rent</option>
+              </select>
             </div>
           </div>
 
-          {/* LOCATION */}
           <div className="flex gap-2">
-            <input
-              name="lat"
-              value={newProp.lat ?? ""}
-              onChange={handleChange}
-              placeholder="Latitude"
-              className="w-full border px-3 py-2 rounded"
-            />
-            <input
-              name="lng"
-              value={newProp.lng ?? ""}
-              onChange={handleChange}
-              placeholder="Longitude"
-              className="w-full border px-3 py-2 rounded"
-            />
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">District</label>
+              <select
+                name="district"
+                value={newProp.district || "Maseru"}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+              >
+                <option>Maseru</option>
+                <option>Butha Buthe</option>
+                <option>Leribe</option>
+                <option>Berea</option>
+                <option>Mafeteng</option>
+                <option>Mohale's Hoek</option>
+                <option>Quthing</option>
+                <option>Semonkong</option>
+                <option>Thaba Tseka</option>
+                <option>Mantsonyane</option>
+                <option>Qacha's Neck</option>
+                <option>Mokhotlong</option>
+              </select>
+            </div>
+
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Street / Area</label>
+              <input
+                type="text"
+                name="location"
+                value={newProp.location || ""}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Latitude (Optional)</label>
+              <input
+                type="number"
+                name="lat"
+                value={newProp.lat ?? ""}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                step="any"
+                placeholder="Optional"
+              />
+            </div>
+
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Longitude (Optional)</label>
+              <input
+                type="number"
+                name="lng"
+                value={newProp.lng ?? ""}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                step="any"
+                placeholder="Optional"
+              />
+            </div>
+
             <button
               type="button"
               onClick={useMyLocation}
-              className="bg-blue-600 text-white px-3 rounded"
+              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              Use
+              Use My Location
             </button>
           </div>
 
-          {/* ACTIONS */}
+          {locationStatus && (
+            <p className="text-sm text-gray-600">{locationStatus}</p>
+          )}
+
+          {newProp.purpose === "buy" && (
+            <div>
+              <label className="font-semibold mb-1 block">Price (Buy)</label>
+              <input
+                type="number"
+                name="price"
+                value={newProp.price ?? ""}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                min={0}
+              />
+            </div>
+          )}
+
+          {newProp.purpose === "rent" && (
+            <div>
+              <label className="font-semibold mb-1 block">Rent Price</label>
+              <input
+                type="number"
+                name="rent_price"
+                value={newProp.rent_price ?? ""}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                min={0}
+              />
+            </div>
+          )}
+
+          {newProp.type === "House" && (
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="font-semibold mb-1 block">Bedrooms</label>
+                <input
+                  type="number"
+                  name="bedrooms"
+                  value={newProp.bedrooms ?? ""}
+                  onChange={handleChange}
+                  className="w-full border px-3 py-2 rounded"
+                  min={0}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="font-semibold mb-1 block">Bathrooms</label>
+                <input
+                  type="number"
+                  name="bathrooms"
+                  value={newProp.bathrooms ?? ""}
+                  onChange={handleChange}
+                  className="w-full border px-3 py-2 rounded"
+                  min={0}
+                />
+              </div>
+            </div>
+          )}
+
+          {newProp.type === "Land" && (
+            <div>
+              <label className="font-semibold mb-1 block">Size (m²)</label>
+              <input
+                type="number"
+                name="size"
+                value={newProp.size ?? ""}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+                min={0}
+              />
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">Phone Number</label>
+              <input
+                type="text"
+                name="phone"
+                value={newProp.phone || ""}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="font-semibold mb-1 block">WhatsApp Number</label>
+              <input
+                type="text"
+                name="whatsapp"
+                value={newProp.whatsapp || ""}
+                onChange={handleChange}
+                className="w-full border px-3 py-2 rounded"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="font-semibold mb-1 block">
+              Images {isEditMode ? "(choose new ones to replace current images)" : ""}
+            </label>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImages}
+            />
+          </div>
+
+          {imagesPreview.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {imagesPreview.map((src, i) => (
+                <img
+                  key={i}
+                  src={src}
+                  alt="preview"
+                  className="w-20 h-20 object-cover rounded"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -206,13 +390,14 @@ export default function ListModal({
             >
               Cancel
             </button>
-
             <button
               type="submit"
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded"
             >
-              {loading ? "Saving..." : isEditMode ? "Update" : "Create"}
+              {loading
+                ? (isEditMode ? "Updating..." : "Listing...")
+                : (isEditMode ? "Update Property" : "List Property")}
             </button>
           </div>
         </form>
