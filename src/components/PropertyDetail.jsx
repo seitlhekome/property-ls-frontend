@@ -108,9 +108,7 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
 
           const list = Array.isArray(all.data) ? all.data : [];
           const found = list.find(
-            (p) =>
-              String(p.id) === String(id) ||
-              String(p._id) === String(id)
+            (p) => String(p.id) === String(id) || String(p._id) === String(id)
           );
 
           const normalizedFallback = normalizeProperty(found);
@@ -153,20 +151,16 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
   }, [propertyId]);
 
   const safeMainImage = images[mainImageIndex] || fallbackImage;
-  const isFav = propertyId ? favorites.includes(propertyId) : false;
+  const isSaved = propertyId ? favorites.includes(propertyId) : false;
+  const isLoggedIn = !!currentUser;
 
   const whatsappNumber = property?.whatsapp
     ? String(property.whatsapp).replace(/\D/g, "")
     : null;
 
-  const handleFavoriteClick = () => {
+  const handleFavoriteClick = (e) => {
+    if (e) e.stopPropagation();
     if (!propertyId) return;
-
-    if (!currentUser) {
-      setPageError("Please log in to save properties.");
-      return;
-    }
-
     setPageError("");
     toggleFav(propertyId);
   };
@@ -231,9 +225,32 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
           )}
 
           <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
-            <h1 className="mb-2 text-2xl font-bold text-gray-800 sm:text-3xl">
-              {property.title}
-            </h1>
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <h1 className="text-2xl font-bold text-gray-800 sm:text-3xl">
+                {property.title}
+              </h1>
+
+              <button
+                onClick={handleFavoriteClick}
+                className={`flex h-11 w-11 items-center justify-center rounded-full border bg-white shadow-sm transition ${
+                  !isLoggedIn
+                    ? "border-gray-200 text-gray-400"
+                    : isSaved
+                    ? "border-red-200 text-red-500"
+                    : "border-gray-200 text-gray-500 hover:text-red-500"
+                }`}
+                aria-label={isSaved ? "Saved property" : "Save property"}
+                title={
+                  !isLoggedIn
+                    ? "Sign in to save properties"
+                    : isSaved
+                    ? "Saved"
+                    : "Save property"
+                }
+              >
+                <span className="text-xl">{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
+              </button>
+            </div>
 
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 capitalize">
@@ -295,16 +312,18 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
               </p>
             </div>
 
-            <button
-              onClick={handleFavoriteClick}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-                isFav
-                  ? "bg-red-600 text-white hover:bg-red-700"
-                  : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+            <div
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
+                !isLoggedIn
+                  ? "bg-gray-100 text-gray-400"
+                  : isSaved
+                  ? "bg-red-50 text-red-600"
+                  : "bg-gray-100 text-gray-700"
               }`}
             >
-              {isFav ? "Saved" : "Save property"}
-            </button>
+              <span>{isSaved && isLoggedIn ? "Saved" : "Save"}</span>
+              <span>{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
+            </div>
           </div>
         </div>
 

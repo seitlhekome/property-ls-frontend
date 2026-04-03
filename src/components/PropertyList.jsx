@@ -12,35 +12,10 @@ export default function PropertyList({
 }) {
   const navigate = useNavigate();
 
-  const SkeletonCard = () => (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden animate-pulse">
-      <div className="w-full h-48 bg-gray-200"></div>
-
-      <div className="p-4 space-y-3">
-        <div className="h-5 bg-gray-200 rounded w-1/2"></div>
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-        <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-
-        <div className="flex gap-4 mt-2">
-          <div className="h-3 bg-gray-200 rounded w-10"></div>
-          <div className="h-3 bg-gray-200 rounded w-10"></div>
-          <div className="h-3 bg-gray-200 rounded w-12"></div>
-        </div>
-
-        <div className="flex justify-between mt-4">
-          <div className="h-6 bg-gray-200 rounded w-20"></div>
-          <div className="h-6 bg-gray-200 rounded w-20"></div>
-        </div>
-      </div>
-    </div>
-  );
-
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto p-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <SkeletonCard key={i} />
-        ))}
+      <div className="max-w-7xl mx-auto p-6 text-center text-gray-500">
+        Loading properties...
       </div>
     );
   }
@@ -85,7 +60,8 @@ export default function PropertyList({
       {properties.map((p) => {
         const image = getImageUrl(p);
         const propertyId = p.id ?? p._id;
-        const isFav = favorites.includes(propertyId);
+        const isSaved = favorites.includes(propertyId);
+        const isLoggedIn = !!currentUser;
 
         return (
           <div
@@ -94,6 +70,11 @@ export default function PropertyList({
             onClick={() => setSelectedProperty(p)}
             role="button"
             tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                setSelectedProperty(p);
+              }
+            }}
           >
             <div className="relative">
               <img
@@ -105,6 +86,30 @@ export default function PropertyList({
                   e.currentTarget.src = "/no-image.png";
                 }}
               />
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFav(propertyId);
+                }}
+                className={`absolute top-3 right-3 flex h-10 w-10 items-center justify-center rounded-full border bg-white/95 shadow-sm transition ${
+                  !isLoggedIn
+                    ? "border-gray-200 text-gray-400"
+                    : isSaved
+                    ? "border-red-200 text-red-500"
+                    : "border-gray-200 text-gray-500 hover:text-red-500"
+                }`}
+                aria-label={isSaved ? "Saved property" : "Save property"}
+                title={
+                  !isLoggedIn
+                    ? "Sign in to save properties"
+                    : isSaved
+                    ? "Saved"
+                    : "Save property"
+                }
+              >
+                <span className="text-lg">{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
+              </button>
             </div>
 
             <div className="p-4 flex flex-col flex-1">
@@ -144,21 +149,19 @@ export default function PropertyList({
                 </div>
               )}
 
-              <div className="mt-auto flex justify-between items-center gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!currentUser) {
-                      alert("Please log in to save properties");
-                      return;
-                    }
-                    toggleFav(propertyId);
-                  }}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-red-600 transition"
+              <div className="mt-auto flex justify-between items-center gap-2 pt-4">
+                <div
+                  className={`flex items-center gap-1 text-sm font-medium ${
+                    !isLoggedIn
+                      ? "text-gray-400"
+                      : isSaved
+                      ? "text-red-600"
+                      : "text-gray-700"
+                  }`}
                 >
-                  <span>{isFav ? "Saved" : "Save"}</span>
-                  <span className="text-base">{isFav ? "❤️" : "🤍"}</span>
-                </button>
+                  <span>{isSaved && isLoggedIn ? "Saved" : "Save"}</span>
+                  <span className="text-base">{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
+                </div>
 
                 <button
                   onClick={(e) => {

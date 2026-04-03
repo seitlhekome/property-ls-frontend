@@ -52,6 +52,8 @@ export default function SavedProperties({
     );
   }, [properties, favorites]);
 
+  const isLoggedIn = !!currentUser;
+
   if (!currentUser) {
     return null;
   }
@@ -86,7 +88,7 @@ export default function SavedProperties({
           {savedProperties.map((prop) => {
             const id = getPropertyId(prop);
             const imageUrl = normalizeImages(prop.images)[0] || fallbackImage;
-            const isFav = favorites.includes(id);
+            const isSaved = favorites.includes(id);
 
             return (
               <div
@@ -98,15 +100,41 @@ export default function SavedProperties({
                   })
                 }
               >
-                <img
-                  src={imageUrl}
-                  alt={prop.title || "Property"}
-                  className="w-full h-52 object-cover"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = fallbackImage;
-                  }}
-                />
+                <div className="relative">
+                  <img
+                    src={imageUrl}
+                    alt={prop.title || "Property"}
+                    className="w-full h-52 object-cover"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = fallbackImage;
+                    }}
+                  />
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFav(id);
+                    }}
+                    className={`absolute top-3 right-3 flex h-10 w-10 items-center justify-center rounded-full border bg-white/95 shadow-sm transition ${
+                      !isLoggedIn
+                        ? "border-gray-200 text-gray-400"
+                        : isSaved
+                        ? "border-red-200 text-red-500"
+                        : "border-gray-200 text-gray-500 hover:text-red-500"
+                    }`}
+                    aria-label={isSaved ? "Saved property" : "Save property"}
+                    title={
+                      !isLoggedIn
+                        ? "Sign in to save properties"
+                        : isSaved
+                        ? "Saved"
+                        : "Save property"
+                    }
+                  >
+                    <span className="text-lg">{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
+                  </button>
+                </div>
 
                 <div className="p-5 flex flex-col flex-1">
                   <div className="flex items-start justify-between gap-3 mb-2">
@@ -118,7 +146,7 @@ export default function SavedProperties({
                       className={`text-xs font-medium px-2 py-1 rounded-full ${
                         prop.purpose === "buy"
                           ? "bg-blue-100 text-blue-700"
-                          : "bg-green-100 text-green-700"
+                          : "bg-sky-100 text-sky-700"
                       }`}
                     >
                       {prop.purpose === "buy" ? "For Sale" : "For Rent"}
@@ -161,12 +189,12 @@ export default function SavedProperties({
                         toggleFav(id);
                       }}
                       className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                        isFav
-                          ? "bg-red-600 text-white hover:bg-red-700"
-                          : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                        isSaved && isLoggedIn
+                          ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                          : "bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200"
                       }`}
                     >
-                      {isFav ? "Saved" : "Save"}
+                      {isSaved && isLoggedIn ? "Saved" : "Save"}
                     </button>
                   </div>
                 </div>
