@@ -30,11 +30,13 @@ export default function PropertyList({
         <div className="h-5 bg-gray-200 rounded w-1/2"></div>
         <div className="h-4 bg-gray-200 rounded w-3/4"></div>
         <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+
         <div className="flex gap-4 mt-2">
           <div className="h-3 bg-gray-200 rounded w-10"></div>
           <div className="h-3 bg-gray-200 rounded w-10"></div>
           <div className="h-3 bg-gray-200 rounded w-12"></div>
         </div>
+
         <div className="flex justify-between items-center pt-2">
           <div className="h-4 bg-gray-200 rounded w-16"></div>
           <div className="h-7 bg-gray-200 rounded w-20"></div>
@@ -112,32 +114,11 @@ export default function PropertyList({
                   e.currentTarget.src = fallbackImage;
                 }}
               />
-
-              {/* ❤️ FAVORITE BUTTON */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleFav(id);
-                }}
-                className={`absolute top-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow transition ${
-                  isSaved
-                    ? "text-red-500"
-                    : "text-gray-500 hover:text-red-500"
-                }`}
-                title={
-                  !isLoggedIn
-                    ? "Sign in to save"
-                    : isSaved
-                    ? "Remove from saved"
-                    : "Save property"
-                }
-              >
-                <span className="text-lg">{isSaved ? "❤️" : "🤍"}</span>
-              </button>
             </div>
 
             {/* CONTENT */}
             <div className="p-4 flex flex-col flex-1">
+              {/* PRICE */}
               <div className="text-blue-600 font-semibold text-lg">
                 {p.purpose === "buy" && Number(p.price) > 0 && fmt(p.price)}
                 {p.purpose === "rent" && Number(p.rent_price) > 0 && (
@@ -148,21 +129,43 @@ export default function PropertyList({
                 )}
               </div>
 
+              {/* TITLE */}
               <h3 className="text-base font-semibold text-gray-900 mt-1">
                 {p.title || "Untitled Property"}
               </h3>
 
+              {/* LOCATION */}
               <p className="text-sm text-gray-500">
                 {p.location || "Unknown location"}, {p.district || "Lesotho"}
               </p>
 
+              {/* FEATURES */}
               <div className="flex gap-4 text-xs text-gray-600 mt-2">
                 <span>🛏 {p.bedrooms ?? "-"}</span>
                 <span>🛁 {p.bathrooms ?? "-"}</span>
                 <span>📐 {p.size ?? "-"} m²</span>
               </div>
 
+              {/* ACTIONS */}
               <div className="mt-auto flex justify-between items-center gap-2 pt-4">
+                
+                {/* SAVE BUTTON */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFav(id);
+                  }}
+                  className={`text-sm font-medium transition ${
+                    !isLoggedIn
+                      ? "text-gray-400"
+                      : isSaved
+                      ? "text-red-600"
+                      : "text-gray-600 hover:text-red-500"
+                  }`}
+                >
+                  {isSaved ? "Saved ❤️" : "Save 🤍"}
+                </button>
+
                 {/* MAP BUTTON */}
                 <button
                   onClick={(e) => {
@@ -178,13 +181,6 @@ export default function PropertyList({
                 >
                   View on Map
                 </button>
-
-                {/* STATUS */}
-                {isSaved && (
-                  <span className="text-xs text-red-500 font-medium">
-                    Saved
-                  </span>
-                )}
               </div>
             </div>
           </div>
