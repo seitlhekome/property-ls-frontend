@@ -34,12 +34,16 @@ export default function AuthModal({
 
     if (!authForm.password) {
       errors.password = "Password is required";
-    } else if (authForm.password.length < 6) {
-      errors.password = "Password must be at least 6 characters";
-    } else if (!/[A-Za-z]/.test(authForm.password)) {
-      errors.password = "Password must include at least one letter";
-    } else if (!/[0-9]/.test(authForm.password)) {
-      errors.password = "Password must include at least one number";
+    }
+
+    if (authIsSignup && authForm.password) {
+      if (authForm.password.length < 6) {
+        errors.password = "Password must be at least 6 characters";
+      } else if (!/[A-Za-z]/.test(authForm.password)) {
+        errors.password = "Password must include at least one letter";
+      } else if (!/[0-9]/.test(authForm.password)) {
+        errors.password = "Password must include at least one number";
+      }
     }
 
     if (authIsSignup) {
@@ -176,9 +180,11 @@ export default function AuthModal({
           {fieldErrors.password && (
             <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>
           )}
-          <p className="mt-1 text-xs text-gray-400">
-            Use at least 6 characters, with one letter and one number.
-          </p>
+          {authIsSignup && (
+            <p className="mt-1 text-xs text-gray-400">
+              Use at least 6 characters, with one letter and one number.
+            </p>
+          )}
         </div>
 
         {authIsSignup && (
