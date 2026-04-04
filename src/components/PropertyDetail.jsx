@@ -43,7 +43,12 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
             return img;
           }
 
-          if (img && typeof img === "object" && typeof img.url === "string" && img.url.trim()) {
+          if (
+            img &&
+            typeof img === "object" &&
+            typeof img.url === "string" &&
+            img.url.trim()
+          ) {
             return img.url;
           }
 
@@ -56,29 +61,32 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
     }
   }, []);
 
-  const normalizeProperty = useCallback((raw) => {
-    if (!raw || typeof raw !== "object") return null;
+  const normalizeProperty = useCallback(
+    (raw) => {
+      if (!raw || typeof raw !== "object") return null;
 
-    return {
-      ...raw,
-      id: raw.id || raw._id,
-      purpose: raw.purpose || "buy",
-      type: raw.type || "N/A",
-      district: raw.district || "N/A",
-      location: raw.location || "N/A",
-      bedrooms: raw.bedrooms ?? "N/A",
-      bathrooms: raw.bathrooms ?? "N/A",
-      size: raw.size ?? "",
-      description: raw.description || "",
-      title: raw.title || "Untitled Property",
-      images: normalizeImages(raw.images),
-      phone: raw.phone || "",
-      whatsapp: raw.whatsapp || "",
-      agent_name: raw.agent_name || raw.agentName || "",
-      price: raw.price ?? "",
-      rent_price: raw.rent_price ?? "",
-    };
-  }, [normalizeImages]);
+      return {
+        ...raw,
+        id: raw.id || raw._id,
+        purpose: raw.purpose || "buy",
+        type: raw.type || "N/A",
+        district: raw.district || "N/A",
+        location: raw.location || "N/A",
+        bedrooms: raw.bedrooms ?? "N/A",
+        bathrooms: raw.bathrooms ?? "N/A",
+        size: raw.size ?? "",
+        description: raw.description || "",
+        title: raw.title || "Untitled Property",
+        images: normalizeImages(raw.images),
+        phone: raw.phone || "",
+        whatsapp: raw.whatsapp || "",
+        agent_name: raw.agent_name || raw.agentName || "",
+        price: raw.price ?? "",
+        rent_price: raw.rent_price ?? "",
+      };
+    },
+    [normalizeImages]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -151,7 +159,11 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
   }, [propertyId]);
 
   const safeMainImage = images[mainImageIndex] || fallbackImage;
-  const isSaved = propertyId ? favorites.includes(propertyId) : false;
+
+  const isSaved = propertyId
+    ? favorites.some((favId) => String(favId) === String(propertyId))
+    : false;
+
   const isLoggedIn = !!currentUser;
 
   const whatsappNumber = property?.whatsapp
@@ -297,12 +309,25 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
             </div>
 
             <div className="mb-6 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
-              <p><strong>District:</strong> {property.district}</p>
-              <p><strong>Location:</strong> {property.location}</p>
-              <p><strong>Bedrooms:</strong> {property.bedrooms}</p>
-              <p><strong>Bathrooms:</strong> {property.bathrooms}</p>
-              <p><strong>Size:</strong> {property.size ? `${property.size} m²` : "N/A"}</p>
-              <p><strong>Listing Type:</strong> <span className="capitalize">{property.purpose}</span></p>
+              <p>
+                <strong>District:</strong> {property.district}
+              </p>
+              <p>
+                <strong>Location:</strong> {property.location}
+              </p>
+              <p>
+                <strong>Bedrooms:</strong> {property.bedrooms}
+              </p>
+              <p>
+                <strong>Bathrooms:</strong> {property.bathrooms}
+              </p>
+              <p>
+                <strong>Size:</strong> {property.size ? `${property.size} m²` : "N/A"}
+              </p>
+              <p>
+                <strong>Listing Type:</strong>{" "}
+                <span className="capitalize">{property.purpose}</span>
+              </p>
             </div>
 
             <div className="mb-6">
@@ -312,18 +337,19 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
               </p>
             </div>
 
-            <div
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
+            <button
+              onClick={handleFavoriteClick}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
                 !isLoggedIn
                   ? "bg-gray-100 text-gray-400"
                   : isSaved
                   ? "bg-red-50 text-red-600"
-                  : "bg-gray-100 text-gray-700"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
               <span>{isSaved && isLoggedIn ? "Saved" : "Save"}</span>
               <span>{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
-            </div>
+            </button>
           </div>
         </div>
 
