@@ -19,23 +19,37 @@ export default function AuthModal({
   const validateForm = () => {
     const errors = {};
 
-    if (authIsSignup && !authForm.name?.trim()) {
-      errors.name = "Full name is required";
+    // ✅ NAME VALIDATION (2–30 chars)
+    if (authIsSignup) {
+      const name = authForm.name?.trim() || "";
+
+      if (!name) {
+        errors.name = "Full name is required";
+      } else if (name.length < 2) {
+        errors.name = "Name must be at least 2 characters";
+      } else if (name.length > 30) {
+        errors.name = "Name must not exceed 30 characters";
+      } else if (!/^[a-zA-Z\s'-]+$/.test(name)) {
+        errors.name = "Name should only contain letters";
+      }
     }
 
+    // ✅ EMAIL
     if (!authForm.email?.trim()) {
       errors.email = "Email is required";
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
       if (!emailRegex.test(authForm.email.trim())) {
-        errors.email = "Enter a valid email, for example name@gmail.com";
+        errors.email = "Enter a valid email (e.g. john@gmail.com)";
       }
     }
 
+    // ✅ PASSWORD (flexible for login)
     if (!authForm.password) {
       errors.password = "Password is required";
     }
 
+    // ✅ STRICT RULES ONLY FOR SIGNUP
     if (authIsSignup && authForm.password) {
       if (authForm.password.length < 6) {
         errors.password = "Password must be at least 6 characters";
@@ -46,6 +60,7 @@ export default function AuthModal({
       }
     }
 
+    // ✅ CONFIRM PASSWORD
     if (authIsSignup) {
       if (!confirmPassword) {
         errors.confirmPassword = "Please confirm your password";
@@ -95,35 +110,33 @@ export default function AuthModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        {/* CLOSE */}
         <button
           onClick={() => setShowAuthModal(false)}
-          className="absolute right-3 top-3 text-xl text-gray-500 transition hover:text-gray-800"
-          aria-label="Close"
+          className="absolute right-3 top-3 text-xl text-gray-500 hover:text-gray-800"
         >
           ✕
         </button>
 
+        {/* TITLE */}
         <h2 className="mb-2 text-center text-2xl font-bold text-gray-800">
           {authIsSignup ? "Create Account" : "Welcome Back"}
         </h2>
 
-        <p className="mb-5 text-center text-sm text-gray-500">
-          {authIsSignup
-            ? "Create your buyer or agent account to continue."
-            : "Sign in to manage listings and saved properties."}
-        </p>
-
+        {/* ERROR */}
         {errorMsg && (
-          <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mb-3 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
             {errorMsg}
           </div>
         )}
 
+        {/* NAME */}
         {authIsSignup && (
           <div className="mb-3">
             <input
               type="text"
               placeholder="Full Name"
+              maxLength={30}
               value={authForm.name}
               onChange={(e) => {
                 setAuthForm({ ...authForm, name: e.target.value });
@@ -132,11 +145,14 @@ export default function AuthModal({
               className={inputClass("name")}
             />
             {fieldErrors.name && (
-              <p className="mt-1 text-xs text-red-500">{fieldErrors.name}</p>
+              <p className="text-xs text-red-500 mt-1">
+                {fieldErrors.name}
+              </p>
             )}
           </div>
         )}
 
+        {/* EMAIL */}
         <div className="mb-3">
           <input
             type="email"
@@ -149,10 +165,13 @@ export default function AuthModal({
             className={inputClass("email")}
           />
           {fieldErrors.email && (
-            <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>
+            <p className="text-xs text-red-500 mt-1">
+              {fieldErrors.email}
+            </p>
           )}
         </div>
 
+        {/* PASSWORD */}
         <div className="mb-2">
           <div className="relative">
             <input
@@ -171,60 +190,72 @@ export default function AuthModal({
             />
             <button
               type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-blue-600 hover:text-blue-700"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-blue-600"
             >
               {showPassword ? "Hide" : "Show"}
             </button>
           </div>
+
           {fieldErrors.password && (
-            <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>
+            <p className="text-xs text-red-500 mt-1">
+              {fieldErrors.password}
+            </p>
           )}
+
           {authIsSignup && (
-            <p className="mt-1 text-xs text-gray-400">
-              Use at least 6 characters, with one letter and one number.
+            <p className="text-xs text-gray-400 mt-1">
+              At least 6 characters, include a letter and a number
             </p>
           )}
         </div>
 
+        {/* CONFIRM PASSWORD */}
         {authIsSignup && (
-          <>
-            <div className="mb-3">
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm Password"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    setFieldErrors((prev) => ({ ...prev, confirmPassword: "" }));
-                  }}
-                  className={`${inputClass("confirmPassword")} pr-16`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-blue-600 hover:text-blue-700"
-                >
-                  {showConfirmPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-              {fieldErrors.confirmPassword && (
-                <p className="mt-1 text-xs text-red-500">
-                  {fieldErrors.confirmPassword}
-                </p>
-              )}
+          <div className="mb-3">
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setFieldErrors((prev) => ({
+                    ...prev,
+                    confirmPassword: "",
+                  }));
+                }}
+                className={`${inputClass("confirmPassword")} pr-16`}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setShowConfirmPassword(!showConfirmPassword)
+                }
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-blue-600"
+              >
+                {showConfirmPassword ? "Hide" : "Show"}
+              </button>
             </div>
 
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Role
-            </label>
+            {fieldErrors.confirmPassword && (
+              <p className="text-xs text-red-500 mt-1">
+                {fieldErrors.confirmPassword}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ROLE */}
+        {authIsSignup && (
+          <>
+            <label className="text-sm font-medium">Role</label>
             <select
               value={authForm.role}
               onChange={(e) =>
                 setAuthForm({ ...authForm, role: e.target.value })
               }
-              className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              className="w-full mb-3 px-3 py-2 border rounded"
             >
               <option value="user">Buyer</option>
               <option value="agent">Agent</option>
@@ -237,17 +268,18 @@ export default function AuthModal({
               onChange={(e) =>
                 setAuthForm({ ...authForm, whatsapp: e.target.value })
               }
-              className="mb-4 w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              className="w-full mb-3 px-3 py-2 border rounded"
             />
           </>
         )}
 
+        {/* BUTTON */}
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className={`w-full rounded-lg py-2.5 font-medium text-white transition ${
+          className={`w-full py-2 rounded text-white ${
             loading
-              ? "cursor-not-allowed bg-gray-400"
+              ? "bg-gray-400"
               : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
@@ -258,7 +290,8 @@ export default function AuthModal({
             : "Sign In"}
         </button>
 
-        <div className="mt-4 text-center text-sm">
+        {/* SWITCH */}
+        <div className="mt-4 text-center">
           <button
             onClick={handleModeSwitch}
             className="text-blue-600 hover:underline"
