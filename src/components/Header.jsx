@@ -16,10 +16,33 @@ export default function Header({
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isAgent =
-    currentUser?.role === "agent" || currentUser?.user?.role === "agent";
+  const currentRole = (
+    currentUser?.role ||
+    currentUser?.user?.role ||
+    currentUser?.accountType ||
+    currentUser?.user?.accountType ||
+    ""
+  )
+    .toString()
+    .toLowerCase()
+    .trim();
 
-  const isDashboardPage = location.pathname === "/agent/dashboard";
+  const isAgent =
+    currentRole === "agent" ||
+    currentRole === "admin" ||
+    currentRole === "seller" ||
+    currentRole === "property_agent";
+
+  const userName =
+    currentUser?.name ||
+    currentUser?.user?.name ||
+    currentUser?.full_name ||
+    currentUser?.user?.full_name ||
+    "Account";
+
+  const isAgentDashboardPage = location.pathname === "/agent/dashboard";
+  const isBuyerDashboardPage = location.pathname === "/dashboard";
+  const isSavedPropertiesPage = location.pathname === "/saved-properties";
   const isHomePage = location.pathname === "/";
 
   const primaryButtonClass =
@@ -30,6 +53,9 @@ export default function Header({
 
   const neutralButtonClass =
     "rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50";
+
+  const infoBadgeClass =
+    "rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700";
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
@@ -90,6 +116,12 @@ export default function Header({
         )}
 
         <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
+          {currentUser && (
+            <div className={infoBadgeClass}>
+              Welcome, <span className="font-semibold text-blue-700">{userName}</span>
+            </div>
+          )}
+
           <button
             onClick={() => setShowCalculator && setShowCalculator(true)}
             className={primaryButtonClass}
@@ -108,28 +140,47 @@ export default function Header({
 
           {currentUser ? (
             <>
-              {isAgent && !isDashboardPage && (
-                <button
-                  onClick={() => navigate("/agent/dashboard")}
-                  className={primaryButtonClass}
-                >
-                  Dashboard
-                </button>
+              {isAgent ? (
+                <>
+                  {!isAgentDashboardPage && (
+                    <button
+                      onClick={() => navigate("/agent/dashboard")}
+                      className={primaryButtonClass}
+                    >
+                      Dashboard
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setShowListModal && setShowListModal(true)}
+                    className={secondaryButtonClass}
+                  >
+                    List Property
+                  </button>
+                </>
+              ) : (
+                <>
+                  {!isBuyerDashboardPage && (
+                    <button
+                      onClick={() => navigate("/dashboard")}
+                      className={primaryButtonClass}
+                    >
+                      Dashboard
+                    </button>
+                  )}
+
+                  {!isSavedPropertiesPage && (
+                    <button
+                      onClick={() => navigate("/saved-properties")}
+                      className={secondaryButtonClass}
+                    >
+                      Saved
+                    </button>
+                  )}
+                </>
               )}
 
-              {isAgent && (
-                <button
-                  onClick={() => setShowListModal && setShowListModal(true)}
-                  className={secondaryButtonClass}
-                >
-                  List Property
-                </button>
-              )}
-
-              <button
-                onClick={handleLogout}
-                className={neutralButtonClass}
-              >
+              <button onClick={handleLogout} className={neutralButtonClass}>
                 Logout
               </button>
             </>

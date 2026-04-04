@@ -4,7 +4,11 @@ import axios from "axios";
 import ListModal from "./ListModal";
 import { API_URL } from "../config";
 
-export default function Dashboard({ currentUser, setShowListModal, favorites = [] }) {
+export default function Dashboard({
+  currentUser,
+  setShowListModal,
+  favorites = [],
+}) {
   const navigate = useNavigate();
 
   const [allProperties, setAllProperties] = useState([]);
@@ -13,7 +17,6 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
 
   const [editProp, setEditProp] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [activeDataView, setActiveDataView] = useState("all");
 
   const token = localStorage.getItem("token");
 
@@ -29,7 +32,35 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
     currentUser?.user?.name ||
     currentUser?.full_name ||
     currentUser?.user?.full_name ||
-    "Agent";
+    "User";
+
+  const getCurrentUserRole = () =>
+    (
+      currentUser?.role ||
+      currentUser?.user?.role ||
+      currentUser?.accountType ||
+      currentUser?.user?.accountType ||
+      ""
+    )
+      .toString()
+      .toLowerCase()
+      .trim();
+
+  const isAgent = useMemo(() => {
+    const role = getCurrentUserRole();
+    return (
+      role === "agent" ||
+      role === "admin" ||
+      role === "seller" ||
+      role === "property_agent"
+    );
+  }, [currentUser]);
+
+  const [activeDataView, setActiveDataView] = useState("saved");
+
+  useEffect(() => {
+    setActiveDataView(isAgent ? "all" : "saved");
+  }, [isAgent]);
 
   const fallbackImage =
     "data:image/svg+xml;charset=UTF-8," +
@@ -82,12 +113,6 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
   const fetchProperties = useCallback(async () => {
     const userId = getCurrentUserId();
 
-    if (!userId) {
-      setAllProperties([]);
-      setMyProperties([]);
-      return;
-    }
-
     setLoadingProps(true);
 
     try {
@@ -97,6 +122,11 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
 
       const fetchedProperties = Array.isArray(res.data) ? res.data : [];
       setAllProperties(fetchedProperties);
+
+      if (!userId) {
+        setMyProperties([]);
+        return;
+      }
 
       const filtered = fetchedProperties.filter(
         (p) =>
@@ -239,7 +269,7 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
 
   const getSectionText = () => {
     if (activeDataView === "saved") {
-      return "These are the properties saved by this signed-in account. Click any card to open the full property details.";
+      return "These are the properties you have saved. Click any card to open the full property details.";
     }
     if (activeDataView === "buy") {
       return "These are your listed properties that are for sale.";
@@ -274,37 +304,92 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
     </button>
   );
 
+  const renderSkeletons = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div
+          key={index}
+          className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden animate-pulse"
+        >
+          <div className="w-full h-52 bg-gray-200" />
+          <div className="p-5">
+            <div className="h-5 bg-gray-200 rounded w-3/4 mb-3" />
+            <div className="h-5 bg-gray-200 rounded w-1/3 mb-3" />
+            <div className="h-4 bg-gray-200 rounded w-2/3 mb-3" />
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-4" />
+            <div className="flex gap-2">
+              <div className="h-10 bg-gray-200 rounded-lg flex-1" />
+              <div className="h-10 bg-gray-200 rounded-lg flex-1" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <p className="text-sm text-gray-500 mb-1">Agent Dashboard</p>
+            <p className="text-sm text-gray-500 mb-1">
+              {isAgent ? "Agent Dashboard" : "Buyer Dashboard"}
+            </p>
             <h1 className="text-3xl font-bold text-gray-900">
               Welcome, <span className="text-blue-600">{getCurrentUserName()}</span>
             </h1>
             <p className="text-gray-600 mt-2">
-              Manage your property listings, update details, and keep your portfolio current.
+              {isAgent
+                ? "Manage your property listings, update details, and keep your portfolio current."
+                : "View the properties you have saved and quickly open the ones you want to revisit."}
             </p>
           </div>
 
-          <div>
-            <button
-              onClick={() => setShowListModal(true)}
-              className="bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
-            >
-              + List New Property
-            </button>
-          </div>
+          {isAgent && (
+            <div>
+              <button
+                onClick={() => setShowListModal(true)}
+                className="bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+              >
+                + List New Property
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        <StatCard title="Total Listings" value={stats.total} stateKey="all" />
-        <StatCard title="For Sale" value={stats.buyCount} stateKey="buy" />
-        <StatCard title="For Rent" value={stats.rentCount} stateKey="rent" />
-        <StatCard title="Saved Properties" value={stats.savedCount} stateKey="saved" />
-      </div>
+      {isAgent ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+          <StatCard title="Total Listings" value={stats.total} stateKey="all" />
+          <StatCard title="For Sale" value={stats.buyCount} stateKey="buy" />
+          <StatCard title="For Rent" value={stats.rentCount} stateKey="rent" />
+          <StatCard title="Saved Properties" value={stats.savedCount} stateKey="saved" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
+          <StatCard
+            title="Saved Properties"
+            value={stats.savedCount}
+            stateKey="saved"
+          />
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-gray-500">Quick Access</p>
+            <h2 className="text-2xl font-bold text-gray-900 mt-1">Your Favourites</h2>
+            <p className="text-sm text-gray-500 mt-2">
+              Keep track of the homes and rentals you liked most.
+            </p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-gray-500">Browse More</p>
+            <button
+              onClick={() => navigate("/")}
+              className="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              Go to Homepage
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-gray-900">{getSectionTitle()}</h2>
@@ -312,9 +397,7 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
       </div>
 
       {loadingProps ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500 shadow-sm">
-          Loading properties...
-        </div>
+        renderSkeletons()
       ) : displayedProperties.length === 0 ? (
         <div className="bg-white rounded-xl border border-dashed border-gray-300 p-10 text-center shadow-sm">
           <h3 className="text-lg font-semibold text-gray-800 mb-2">
@@ -327,13 +410,23 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
               ? "Save properties from the homepage, and they will appear here with real details."
               : "Try another dashboard section or add a new property listing."}
           </p>
-          {activeDataView !== "saved" && (
+
+          {activeDataView === "saved" ? (
             <button
-              onClick={() => setShowListModal(true)}
+              onClick={() => navigate("/")}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
             >
-              List Property
+              Browse Properties
             </button>
+          ) : (
+            isAgent && (
+              <button
+                onClick={() => setShowListModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                List Property
+              </button>
+            )
           )}
         </div>
       ) : (
@@ -395,7 +488,7 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
                     <span>📐 {prop.size ?? "-"} m²</span>
                   </div>
 
-                  {(prop.phone || prop.whatsapp) && !isSavedView && (
+                  {(prop.phone || prop.whatsapp) && !isSavedView && isAgent && (
                     <p className="text-gray-700 text-sm mt-3">
                       Contact: {prop.phone || ""}
                       {prop.whatsapp ? ` (WhatsApp: ${prop.whatsapp})` : ""}
@@ -445,7 +538,7 @@ export default function Dashboard({ currentUser, setShowListModal, favorites = [
         </div>
       )}
 
-      {showEditModal && editProp && (
+      {showEditModal && editProp && isAgent && (
         <ListModal
           newProp={editProp}
           setNewProp={setEditProp}

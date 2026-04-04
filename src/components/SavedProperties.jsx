@@ -21,6 +21,13 @@ export default function SavedProperties({
       </svg>
     `);
 
+  const userName =
+    currentUser?.name ||
+    currentUser?.user?.name ||
+    currentUser?.full_name ||
+    currentUser?.user?.full_name ||
+    "User";
+
   const normalizeImages = (images) => {
     try {
       let parsed = images;
@@ -52,7 +59,13 @@ export default function SavedProperties({
     );
   }, [properties, favorites]);
 
-  const isLoggedIn = !!currentUser;
+  const stats = useMemo(() => {
+    const total = savedProperties.length;
+    const buyCount = savedProperties.filter((p) => p.purpose === "buy").length;
+    const rentCount = savedProperties.filter((p) => p.purpose === "rent").length;
+
+    return { total, buyCount, rentCount };
+  }, [savedProperties]);
 
   if (!currentUser) {
     return null;
@@ -61,11 +74,50 @@ export default function SavedProperties({
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 lg:px-6">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Saved Properties</h1>
-        <p className="text-gray-600 mt-2">
-          These are the properties you saved while signed in. Click any card to
-          open the full listing.
-        </p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Saved Properties</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Welcome, <span className="text-blue-600">{userName}</span>
+            </h1>
+            <p className="text-gray-600 mt-2">
+              These are the properties you saved while signed in. Open any listing when you want to review it again.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
+            >
+              Dashboard
+            </button>
+
+            <button
+              onClick={() => navigate("/")}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            >
+              Browse More
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">Total Saved</p>
+          <h2 className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</h2>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">For Sale</p>
+          <h2 className="text-2xl font-bold text-gray-900 mt-1">{stats.buyCount}</h2>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-500">For Rent</p>
+          <h2 className="text-2xl font-bold text-gray-900 mt-1">{stats.rentCount}</h2>
+        </div>
       </div>
 
       {savedProperties.length === 0 ? (
@@ -88,7 +140,7 @@ export default function SavedProperties({
           {savedProperties.map((prop) => {
             const id = getPropertyId(prop);
             const imageUrl = normalizeImages(prop.images)[0] || fallbackImage;
-            const isSaved = favorites.includes(id);
+            const isSaved = favorites.some((favId) => String(favId) === String(id));
 
             return (
               <div
@@ -117,22 +169,14 @@ export default function SavedProperties({
                       toggleFav(id);
                     }}
                     className={`absolute top-3 right-3 flex h-10 w-10 items-center justify-center rounded-full border bg-white/95 shadow-sm transition ${
-                      !isLoggedIn
-                        ? "border-gray-200 text-gray-400"
-                        : isSaved
+                      isSaved
                         ? "border-red-200 text-red-500"
                         : "border-gray-200 text-gray-500 hover:text-red-500"
                     }`}
-                    aria-label={isSaved ? "Saved property" : "Save property"}
-                    title={
-                      !isLoggedIn
-                        ? "Sign in to save properties"
-                        : isSaved
-                        ? "Saved"
-                        : "Save property"
-                    }
+                    aria-label={isSaved ? "Remove from saved properties" : "Save property"}
+                    title={isSaved ? "Remove from saved" : "Save property"}
                   >
-                    <span className="text-lg">{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
+                    <span className="text-lg">{isSaved ? "❤️" : "🤍"}</span>
                   </button>
                 </div>
 
@@ -170,6 +214,13 @@ export default function SavedProperties({
                     <span>📐 {prop.size ?? "-"} m²</span>
                   </div>
 
+                  <p className="text-gray-400 text-xs mt-3">
+                    Posted:{" "}
+                    {prop.createdAt || prop.date_posted
+                      ? new Date(prop.createdAt || prop.date_posted).toLocaleDateString()
+                      : "—"}
+                  </p>
+
                   <div className="mt-auto pt-4 flex gap-2">
                     <button
                       onClick={(e) => {
@@ -189,12 +240,12 @@ export default function SavedProperties({
                         toggleFav(id);
                       }}
                       className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                        isSaved && isLoggedIn
+                        isSaved
                           ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
                           : "bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200"
                       }`}
                     >
-                      {isSaved && isLoggedIn ? "Saved" : "Save"}
+                      {isSaved ? "Remove" : "Save"}
                     </button>
                   </div>
                 </div>

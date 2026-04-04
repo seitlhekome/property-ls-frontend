@@ -132,7 +132,13 @@ export default function App() {
   }, [currentUser]);
 
   const getCurrentUserRole = useCallback(() => {
-    return currentUser?.role || currentUser?.user?.role || null;
+    return (
+      currentUser?.role ||
+      currentUser?.user?.role ||
+      currentUser?.accountType ||
+      currentUser?.user?.accountType ||
+      null
+    );
   }, [currentUser]);
 
   const normalizeProperty = useCallback((p) => {
@@ -347,8 +353,21 @@ export default function App() {
 
       await fetchProperties({ silent: true });
 
-      if ((res.data.role || res.data.user?.role) === "agent") {
+      const role = (
+        res.data.role ||
+        res.data.user?.role ||
+        res.data.accountType ||
+        res.data.user?.accountType ||
+        ""
+      )
+        .toString()
+        .toLowerCase()
+        .trim();
+
+      if (role === "agent") {
         navigate("/agent/dashboard");
+      } else {
+        navigate("/dashboard");
       }
     } catch (err) {
       console.error("Login failed:", err);
@@ -382,8 +401,21 @@ export default function App() {
 
       await fetchProperties({ silent: true });
 
-      if ((res.data.role || res.data.user?.role) === "agent") {
+      const role = (
+        res.data.role ||
+        res.data.user?.role ||
+        res.data.accountType ||
+        res.data.user?.accountType ||
+        ""
+      )
+        .toString()
+        .toLowerCase()
+        .trim();
+
+      if (role === "agent") {
         navigate("/agent/dashboard");
+      } else {
+        navigate("/dashboard");
       }
     } catch (err) {
       console.error("Signup failed:", err);
@@ -397,7 +429,7 @@ export default function App() {
   const listProp = async (propData, imageFiles) => {
     const token = localStorage.getItem("token");
 
-    if (!token || getCurrentUserRole() !== "agent") {
+    if (!token || getCurrentUserRole()?.toLowerCase() !== "agent") {
       showError("Only logged-in agents can list properties.");
       return;
     }
@@ -479,7 +511,8 @@ export default function App() {
   }, [properties, activeTab, searchQuery]);
 
   const currentUserId = getCurrentUserId();
-  const isAgent = getCurrentUserRole() === "agent";
+  const isAgent =
+    (getCurrentUserRole() || "").toString().toLowerCase().trim() === "agent";
   const isHomePage = location.pathname === "/";
 
   // ================= RENDER =================
@@ -653,6 +686,21 @@ export default function App() {
                 toggleFav={toggleFav}
                 currentUser={currentUser}
                 fmt={fmt}
+              />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            currentUser ? (
+              <Dashboard
+                setShowListModal={setShowListModal}
+                currentUser={currentUser}
+                favorites={favorites}
               />
             ) : (
               <Navigate to="/" replace />
