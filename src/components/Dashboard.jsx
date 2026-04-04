@@ -345,13 +345,29 @@ export default function Dashboard({
             </p>
           </div>
 
-          {isAgent && (
-            <div>
+          {isAgent ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate("/")}
+                className="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
+              >
+                Go to Homepage
+              </button>
+
               <button
                 onClick={() => setShowListModal(true)}
                 className="bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
               >
                 + List New Property
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate("/")}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+              >
+                Browse More
               </button>
             </div>
           )}
