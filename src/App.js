@@ -19,7 +19,6 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ================= UI STATE =================
   const [activeTab, setActiveTab] = useState("rent");
   const [searchQuery, setSearchQuery] = useState("");
   const [showCalculator, setShowCalculator] = useState(false);
@@ -27,22 +26,18 @@ export default function App() {
   const [showListModal, setShowListModal] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
 
-  // ================= FEEDBACK STATE =================
   const [appError, setAppError] = useState("");
   const [appSuccess, setAppSuccess] = useState("");
   const [authNotice, setAuthNotice] = useState("");
 
-  // ================= DATA STATE =================
   const [currentUser, setCurrentUser] = useState(null);
   const [properties, setProperties] = useState([]);
   const [favorites, setFavorites] = useState([]);
 
-  // ================= LOADING STATE =================
   const [isFetchingProperties, setIsFetchingProperties] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isListingProperty, setIsListingProperty] = useState(false);
 
-  // ================= AUTH FORM =================
   const [authIsSignup, setAuthIsSignup] = useState(true);
   const [authForm, setAuthForm] = useState({
     name: "",
@@ -52,7 +47,6 @@ export default function App() {
     whatsapp: "",
   });
 
-  // ================= NEW PROPERTY =================
   const initialPropertyState = useMemo(
     () => ({
       title: "",
@@ -77,7 +71,6 @@ export default function App() {
 
   const [newProp, setNewProp] = useState(initialPropertyState);
 
-  // ================= HELPERS =================
   const fmt = (v) => `M ${Number(v || 0).toLocaleString()}`;
 
   const clearFeedback = useCallback(() => {
@@ -196,7 +189,6 @@ export default function App() {
     localStorage.removeItem("token");
   }, []);
 
-  // ================= FAVORITES =================
   const toggleFav = useCallback(
     (id) => {
       if (!currentUser) {
@@ -208,34 +200,14 @@ export default function App() {
       clearFeedback();
 
       setFavorites((prev) =>
-        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        prev.some((favId) => String(favId) === String(id))
+          ? prev.filter((favId) => String(favId) !== String(id))
+          : [...prev, id]
       );
     },
     [currentUser, clearFeedback, showAuthNotice]
   );
 
-  useEffect(() => {
-    try {
-      const storedFavorites = localStorage.getItem("favorites");
-      if (storedFavorites) {
-        const parsedFavorites = JSON.parse(storedFavorites);
-        setFavorites(Array.isArray(parsedFavorites) ? parsedFavorites : []);
-      }
-    } catch (error) {
-      console.error("Failed to load favorites:", error);
-      localStorage.removeItem("favorites");
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("favorites", JSON.stringify(favorites));
-    } catch (error) {
-      console.error("Failed to save favorites:", error);
-    }
-  }, [favorites]);
-
-  // ================= LOAD USER SESSION =================
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("user");
@@ -258,6 +230,58 @@ export default function App() {
       clearSession();
     }
   }, [clearSession]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setFavorites([]);
+      return;
+    }
+
+    try {
+      const userId =
+        currentUser?.id ||
+        currentUser?.user?.id ||
+        currentUser?._id ||
+        currentUser?.user?._id;
+
+      if (!userId) {
+        setFavorites([]);
+        return;
+      }
+
+      const storageKey = `favorites_${userId}`;
+      const storedFavorites = localStorage.getItem(storageKey);
+
+      if (storedFavorites) {
+        const parsedFavorites = JSON.parse(storedFavorites);
+        setFavorites(Array.isArray(parsedFavorites) ? parsedFavorites : []);
+      } else {
+        setFavorites([]);
+      }
+    } catch (error) {
+      console.error("Failed to load favorites:", error);
+      setFavorites([]);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    try {
+      const userId =
+        currentUser?.id ||
+        currentUser?.user?.id ||
+        currentUser?._id ||
+        currentUser?.user?._id;
+
+      if (!userId) return;
+
+      const storageKey = `favorites_${userId}`;
+      localStorage.setItem(storageKey, JSON.stringify(favorites));
+    } catch (error) {
+      console.error("Failed to save favorites:", error);
+    }
+  }, [favorites, currentUser]);
 
   useEffect(() => {
     if (!showWelcomeBanner) return;
@@ -290,7 +314,6 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [authNotice]);
 
-  // ================= FETCH PROPERTIES =================
   const fetchProperties = useCallback(
     async ({ silent = false } = {}) => {
       if (!silent) {
@@ -323,7 +346,6 @@ export default function App() {
     fetchProperties();
   }, [fetchProperties]);
 
-  // ================= AUTH =================
   const handleLogin = async () => {
     if (!authForm.email || !authForm.password) {
       throw new Error("Enter email and password");
@@ -425,7 +447,6 @@ export default function App() {
     }
   };
 
-  // ================= LIST PROPERTY =================
   const listProp = async (propData, imageFiles) => {
     const token = localStorage.getItem("token");
 
@@ -481,16 +502,15 @@ export default function App() {
     }
   };
 
-  // ================= LOGOUT =================
   const handleLogout = useCallback(() => {
     setCurrentUser(null);
+    setFavorites([]);
     setShowWelcomeBanner(false);
     clearSession();
     showSuccess("Logged out successfully.");
     navigate("/");
   }, [clearSession, navigate, showSuccess]);
 
-  // ================= FILTER =================
   const filteredProperties = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
@@ -515,7 +535,6 @@ export default function App() {
     (getCurrentUserRole() || "").toString().toLowerCase().trim() === "agent";
   const isHomePage = location.pathname === "/";
 
-  // ================= RENDER =================
   return (
     <div className="min-h-screen bg-gray-50">
       <Header
