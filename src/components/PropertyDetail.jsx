@@ -83,6 +83,8 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
         agent_name: raw.agent_name || raw.agentName || "",
         price: raw.price ?? "",
         rent_price: raw.rent_price ?? "",
+        date_posted:
+          raw.date_posted || raw.createdAt || raw.created_at || raw.datePosted || "",
       };
     },
     [normalizeImages]
@@ -165,6 +167,7 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
     : false;
 
   const isLoggedIn = !!currentUser;
+  const hasMultipleImages = images.length > 1;
 
   const whatsappNumber = property?.whatsapp
     ? String(property.whatsapp).replace(/\D/g, "")
@@ -190,6 +193,25 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
 
     return "Price not available";
   };
+
+  const goToPreviousImage = () => {
+    setMainImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const goToNextImage = () => {
+    setMainImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const getPostedDate = () => {
+    if (!property?.date_posted) return null;
+
+    const parsed = new Date(property.date_posted);
+    if (Number.isNaN(parsed.getTime())) return null;
+
+    return parsed.toLocaleDateString();
+  };
+
+  const postedDate = getPostedDate();
 
   if (loading) {
     return (
@@ -237,31 +259,10 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
           )}
 
           <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
-            <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="mb-3">
               <h1 className="text-2xl font-bold text-gray-800 sm:text-3xl">
                 {property.title}
               </h1>
-
-              <button
-                onClick={handleFavoriteClick}
-                className={`flex h-11 w-11 items-center justify-center rounded-full border bg-white shadow-sm transition ${
-                  !isLoggedIn
-                    ? "border-gray-200 text-gray-400"
-                    : isSaved
-                    ? "border-red-200 text-red-500"
-                    : "border-gray-200 text-gray-500 hover:text-red-500"
-                }`}
-                aria-label={isSaved ? "Saved property" : "Save property"}
-                title={
-                  !isLoggedIn
-                    ? "Sign in to save properties"
-                    : isSaved
-                    ? "Saved"
-                    : "Save property"
-                }
-              >
-                <span className="text-xl">{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
-              </button>
             </div>
 
             <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -277,35 +278,68 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
             </div>
 
             <div className="mb-5">
-              <img
-                src={safeMainImage}
-                alt={property.title}
-                className="mb-3 h-72 w-full rounded-xl object-cover sm:h-96"
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = fallbackImage;
-                }}
-              />
+              <div className="relative">
+                <img
+                  src={safeMainImage}
+                  alt={property.title}
+                  className="mb-3 h-72 w-full rounded-xl object-cover sm:h-96"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = fallbackImage;
+                  }}
+                />
 
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {images.map((img, i) => (
-                  <img
-                    key={`${img}-${i}`}
-                    src={img}
-                    alt={`Property ${i + 1}`}
-                    onClick={() => setMainImageIndex(i)}
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = fallbackImage;
-                    }}
-                    className={`h-20 w-24 flex-shrink-0 cursor-pointer rounded-lg object-cover border-2 transition ${
-                      i === mainImageIndex
-                        ? "border-blue-600"
-                        : "border-transparent hover:border-gray-300"
-                    }`}
-                  />
-                ))}
+                {hasMultipleImages && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={goToPreviousImage}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-gray-700 shadow hover:bg-white"
+                    >
+                      ←
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={goToNextImage}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-gray-700 shadow hover:bg-white"
+                    >
+                      →
+                    </button>
+
+                    <div className="absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs text-white">
+                      {mainImageIndex + 1} / {images.length}
+                    </div>
+                  </>
+                )}
               </div>
+
+              {hasMultipleImages && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {images.map((img, i) => (
+                    <button
+                      type="button"
+                      key={`${img}-${i}`}
+                      onClick={() => setMainImageIndex(i)}
+                      className={`relative h-20 w-24 flex-shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                        i === mainImageIndex
+                          ? "border-blue-600"
+                          : "border-transparent hover:border-gray-300"
+                      }`}
+                    >
+                      <img
+                        src={img}
+                        alt={`Property ${i + 1}`}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = fallbackImage;
+                        }}
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="mb-6 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
@@ -328,6 +362,11 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
                 <strong>Listing Type:</strong>{" "}
                 <span className="capitalize">{property.purpose}</span>
               </p>
+              {postedDate && (
+                <p>
+                  <strong>Date Posted:</strong> {postedDate}
+                </p>
+              )}
             </div>
 
             <div className="mb-6">

@@ -85,6 +85,22 @@ export default function PropertyList({
     return [-29.3152, 27.4869];
   };
 
+  const getPostedDate = (property) => {
+    const rawDate =
+      property.date_posted ||
+      property.createdAt ||
+      property.created_at ||
+      property.datePosted ||
+      null;
+
+    if (!rawDate) return null;
+
+    const parsed = new Date(rawDate);
+    if (Number.isNaN(parsed.getTime())) return null;
+
+    return parsed.toLocaleDateString();
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {properties.map((p) => {
@@ -92,6 +108,7 @@ export default function PropertyList({
         const image = getImageUrl(p);
         const isSaved = favorites.some((fav) => String(fav) === String(id));
         const isLoggedIn = !!currentUser;
+        const postedDate = getPostedDate(p);
 
         return (
           <div
@@ -103,7 +120,6 @@ export default function PropertyList({
               })
             }
           >
-            {/* IMAGE */}
             <div className="relative">
               <img
                 src={image}
@@ -116,9 +132,7 @@ export default function PropertyList({
               />
             </div>
 
-            {/* CONTENT */}
             <div className="p-4 flex flex-col flex-1">
-              {/* PRICE */}
               <div className="text-blue-600 font-semibold text-lg">
                 {p.purpose === "buy" && Number(p.price) > 0 && fmt(p.price)}
                 {p.purpose === "rent" && Number(p.rent_price) > 0 && (
@@ -129,27 +143,27 @@ export default function PropertyList({
                 )}
               </div>
 
-              {/* TITLE */}
               <h3 className="text-base font-semibold text-gray-900 mt-1">
                 {p.title || "Untitled Property"}
               </h3>
 
-              {/* LOCATION */}
               <p className="text-sm text-gray-500">
                 {p.location || "Unknown location"}, {p.district || "Lesotho"}
               </p>
 
-              {/* FEATURES */}
               <div className="flex gap-4 text-xs text-gray-600 mt-2">
                 <span>🛏 {p.bedrooms ?? "-"}</span>
                 <span>🛁 {p.bathrooms ?? "-"}</span>
                 <span>📐 {p.size ?? "-"} m²</span>
               </div>
 
-              {/* ACTIONS */}
+              {postedDate && (
+                <p className="text-xs text-gray-400 mt-2">
+                  Posted on {postedDate}
+                </p>
+              )}
+
               <div className="mt-auto flex justify-between items-center gap-2 pt-4">
-                
-                {/* SAVE BUTTON */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -166,7 +180,6 @@ export default function PropertyList({
                   {isSaved ? "Saved ❤️" : "Save 🤍"}
                 </button>
 
-                {/* MAP BUTTON */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

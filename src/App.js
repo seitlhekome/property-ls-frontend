@@ -156,6 +156,8 @@ export default function App() {
       images: Array.isArray(parsedImages) ? parsedImages : [],
       phone: p.phone || "",
       whatsapp: p.whatsapp || "",
+      description: p.description || "",
+      date_posted: p.date_posted || p.createdAt || p.created_at || null,
       lat: p.lat != null && p.lat !== "" ? Number(p.lat) : null,
       lng: p.lng != null && p.lng !== "" ? Number(p.lng) : null,
     };
@@ -470,6 +472,11 @@ export default function App() {
 
         const value = propData[key];
 
+        if (key === "retainedImages") {
+          fd.append("retainedImages", JSON.stringify(Array.isArray(value) ? value : []));
+          return;
+        }
+
         if (["lat", "lng"].includes(key)) {
           if (value !== "" && value !== null && value !== undefined) {
             const parsed = Number(value);
@@ -483,7 +490,14 @@ export default function App() {
         fd.append(key, value ?? "");
       });
 
-      await axios.post(`${API_URL}/properties`, fd, {
+      const targetUrl =
+        propData.id || propData._id
+          ? `${API_URL}/properties/${propData.id || propData._id}`
+          : `${API_URL}/properties`;
+
+      const requestMethod = propData.id || propData._id ? axios.put : axios.post;
+
+      await requestMethod(targetUrl, fd, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -492,11 +506,22 @@ export default function App() {
 
       setShowListModal(false);
       resetNewPropertyForm();
-      showSuccess("Property listed successfully.");
+      showSuccess(
+        propData.id || propData._id
+          ? "Property updated successfully."
+          : "Property listed successfully."
+      );
       await fetchProperties({ silent: true });
     } catch (err) {
-      console.error("Failed to list property:", err);
-      showError(getErrorMessage(err, "Failed to list property."));
+      console.error("Failed to save property:", err);
+      showError(
+        getErrorMessage(
+          err,
+          propData.id || propData._id
+            ? "Failed to update property."
+            : "Failed to list property."
+        )
+      );
     } finally {
       setIsListingProperty(false);
     }

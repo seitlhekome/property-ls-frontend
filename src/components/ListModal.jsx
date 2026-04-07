@@ -13,6 +13,29 @@ export default function ListModal({
 
   const isEditMode = Boolean(newProp?.id || newProp?._id);
 
+  const districtOptions = [
+    "Maseru",
+    "Butha Buthe",
+    "Leribe",
+    "Berea",
+    "Mafeteng",
+    "Mohale's Hoek",
+    "Quthing",
+    "Semonkong",
+    "Thaba Tseka",
+    "Mantsonyane",
+    "Qacha's Neck",
+    "Mokhotlong",
+  ];
+
+  const propertyTypes = [
+    "House",
+    "Apartment",
+    "Guesthouse",
+    "Land",
+    "Commercial",
+  ];
+
   const getPreviewUrl = (img) => {
     if (!img) return null;
 
@@ -30,6 +53,20 @@ export default function ListModal({
 
     return null;
   };
+
+  const isExistingImage = (img) => {
+    return (
+      (typeof img === "string" && img.trim()) ||
+      (img &&
+        typeof img === "object" &&
+        !(img instanceof File) &&
+        !(img instanceof Blob) &&
+        typeof img.url === "string" &&
+        img.url.trim())
+    );
+  };
+
+  const isNewFileImage = (img) => img instanceof File || img instanceof Blob;
 
   useEffect(() => {
     if (!newProp?.images || newProp.images.length === 0) {
@@ -60,7 +97,9 @@ export default function ListModal({
       return;
     }
 
-    if (["price", "rent_price", "bedrooms", "bathrooms", "size"].includes(name)) {
+    if (
+      ["price", "rent_price", "bedrooms", "bathrooms", "size"].includes(name)
+    ) {
       setNewProp((prev) => ({
         ...prev,
         [name]: value === "" ? "" : Number(value),
@@ -77,29 +116,52 @@ export default function ListModal({
   const handleImages = (e) => {
     const files = Array.from(e.target.files || []);
 
+    if (!files.length) return;
+
     setNewProp((prev) => ({
       ...prev,
-      images: files,
+      images: [...(Array.isArray(prev.images) ? prev.images : []), ...files],
+    }));
+
+    e.target.value = "";
+  };
+
+  const handleRemoveImage = (indexToRemove) => {
+    setNewProp((prev) => ({
+      ...prev,
+      images: (Array.isArray(prev.images) ? prev.images : []).filter(
+        (_, index) => index !== indexToRemove
+      ),
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!newProp.title) return alert("Title is required");
-    if (!newProp.district) return alert("District is required");
-    if (!newProp.location) return alert("Location is required");
+    if (!newProp.title?.trim()) return alert("Title is required");
+    if (!newProp.district?.trim()) return alert("District is required");
+    if (!newProp.location?.trim()) return alert("Location is required");
+
     if (newProp.purpose === "buy" && !newProp.price) {
       return alert("Price is required");
     }
+
     if (newProp.purpose === "rent" && !newProp.rent_price) {
       return alert("Rent price is required");
     }
 
+    const allImages = Array.isArray(newProp.images) ? newProp.images : [];
+    const newImageFiles = allImages.filter(isNewFileImage);
+    const retainedImages = allImages
+      .filter(isExistingImage)
+      .map((img) => (typeof img === "string" ? img : img.url));
+
     const propData = {
       ...newProp,
+      description: newProp.description || "",
       lat: newProp.lat === "" ? null : newProp.lat,
       lng: newProp.lng === "" ? null : newProp.lng,
+      retainedImages,
       agent_id:
         currentUser?.id ||
         currentUser?.user?.id ||
@@ -108,7 +170,7 @@ export default function ListModal({
         null,
     };
 
-    listPropBackend(propData, Array.isArray(newProp.images) ? newProp.images : []);
+    listPropBackend(propData, newImageFiles);
   };
 
   const useMyLocation = () => {
@@ -136,126 +198,159 @@ export default function ListModal({
     );
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg w-full max-w-3xl overflow-y-auto max-h-[90vh]">
-        <h2 className="text-2xl font-bold mb-4">
-          {isEditMode ? "Edit Property" : "List New Property"}
-        </h2>
+  const showBedroomBathroomFields =
+    newProp.type === "House" ||
+    newProp.type === "Apartment" ||
+    newProp.type === "Guesthouse";
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+  const showSizeField =
+    newProp.type === "Land" ||
+    newProp.type === "Commercial" ||
+    newProp.type === "Guesthouse";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+        <div className="mb-5 flex items-center justify-between gap-4">
           <div>
-            <label className="font-semibold mb-1 block">Title</label>
-            <input
-              type="text"
-              name="title"
-              value={newProp.title || ""}
-              onChange={handleChange}
-              className="w-full border px-3 py-2 rounded"
-              placeholder="Enter property title"
-              required
-            />
+            <h2 className="text-2xl font-bold text-gray-900">
+              {isEditMode ? "Edit Property" : "List New Property"}
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Add full property details, photos, location, and contact
+              information.
+            </p>
           </div>
 
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="font-semibold mb-1 block">Property Type</label>
+          <button
+            type="button"
+            onClick={() => setShowListModal(false)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+          >
+            Close
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className="mb-1 block font-semibold text-gray-800">
+                Title
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={newProp.title || ""}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="Enter property title"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block font-semibold text-gray-800">
+                Property Type
+              </label>
               <select
                 name="type"
                 value={newProp.type || "House"}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
-                <option>House</option>
-                <option>Land</option>
+                {propertyTypes.map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
               </select>
             </div>
 
-            <div className="flex-1">
-              <label className="font-semibold mb-1 block">Purpose</label>
+            <div>
+              <label className="mb-1 block font-semibold text-gray-800">
+                Purpose
+              </label>
               <select
                 name="purpose"
                 value={newProp.purpose || "buy"}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
                 <option value="buy">Buy</option>
                 <option value="rent">Rent</option>
               </select>
             </div>
-          </div>
 
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="font-semibold mb-1 block">District</label>
+            <div>
+              <label className="mb-1 block font-semibold text-gray-800">
+                District
+              </label>
               <select
                 name="district"
                 value={newProp.district || "Maseru"}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               >
-                <option>Maseru</option>
-                <option>Butha Buthe</option>
-                <option>Leribe</option>
-                <option>Berea</option>
-                <option>Mafeteng</option>
-                <option>Mohale's Hoek</option>
-                <option>Quthing</option>
-                <option>Semonkong</option>
-                <option>Thaba Tseka</option>
-                <option>Mantsonyane</option>
-                <option>Qacha's Neck</option>
-                <option>Mokhotlong</option>
+                {districtOptions.map((district) => (
+                  <option key={district}>{district}</option>
+                ))}
               </select>
             </div>
 
-            <div className="flex-1">
-              <label className="font-semibold mb-1 block">Street / Area</label>
+            <div>
+              <label className="mb-1 block font-semibold text-gray-800">
+                Street / Area
+              </label>
               <input
                 type="text"
                 name="location"
                 value={newProp.location || ""}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="e.g. Masowe 3, Roma, Hills View"
                 required
               />
             </div>
           </div>
 
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <label className="font-semibold mb-1 block">Latitude (Optional)</label>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label className="mb-1 block font-semibold text-gray-800">
+                Latitude (Optional)
+              </label>
               <input
                 type="number"
                 name="lat"
                 value={newProp.lat ?? ""}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 step="any"
                 placeholder="Optional"
               />
             </div>
 
-            <div className="flex-1">
-              <label className="font-semibold mb-1 block">Longitude (Optional)</label>
+            <div>
+              <label className="mb-1 block font-semibold text-gray-800">
+                Longitude (Optional)
+              </label>
               <input
                 type="number"
                 name="lng"
                 value={newProp.lng ?? ""}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 step="any"
                 placeholder="Optional"
               />
             </div>
 
-            <button
-              type="button"
-              onClick={useMyLocation}
-              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Use My Location
-            </button>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={useMyLocation}
+                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700"
+              >
+                Use My Location
+              </button>
+            </div>
           </div>
 
           {locationStatus && (
@@ -264,13 +359,15 @@ export default function ListModal({
 
           {newProp.purpose === "buy" && (
             <div>
-              <label className="font-semibold mb-1 block">Price (Buy)</label>
+              <label className="mb-1 block font-semibold text-gray-800">
+                Price (Buy)
+              </label>
               <input
                 type="number"
                 name="price"
                 value={newProp.price ?? ""}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 min={0}
               />
             </div>
@@ -278,126 +375,183 @@ export default function ListModal({
 
           {newProp.purpose === "rent" && (
             <div>
-              <label className="font-semibold mb-1 block">Rent Price</label>
+              <label className="mb-1 block font-semibold text-gray-800">
+                Rent Price
+              </label>
               <input
                 type="number"
                 name="rent_price"
                 value={newProp.rent_price ?? ""}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 min={0}
               />
             </div>
           )}
 
-          {newProp.type === "House" && (
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="font-semibold mb-1 block">Bedrooms</label>
+          {showBedroomBathroomFields && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block font-semibold text-gray-800">
+                  Bedrooms / Rooms
+                </label>
                 <input
                   type="number"
                   name="bedrooms"
                   value={newProp.bedrooms ?? ""}
                   onChange={handleChange}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   min={0}
                 />
               </div>
-              <div className="flex-1">
-                <label className="font-semibold mb-1 block">Bathrooms</label>
+
+              <div>
+                <label className="mb-1 block font-semibold text-gray-800">
+                  Bathrooms
+                </label>
                 <input
                   type="number"
                   name="bathrooms"
                   value={newProp.bathrooms ?? ""}
                   onChange={handleChange}
-                  className="w-full border px-3 py-2 rounded"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   min={0}
                 />
               </div>
             </div>
           )}
 
-          {newProp.type === "Land" && (
+          {showSizeField && (
             <div>
-              <label className="font-semibold mb-1 block">Size (m²)</label>
+              <label className="mb-1 block font-semibold text-gray-800">
+                Size (m²)
+              </label>
               <input
                 type="number"
                 name="size"
                 value={newProp.size ?? ""}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 min={0}
               />
             </div>
           )}
 
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="font-semibold mb-1 block">Phone Number</label>
+          <div>
+            <label className="mb-1 block font-semibold text-gray-800">
+              Description
+            </label>
+            <textarea
+              name="description"
+              value={newProp.description || ""}
+              onChange={handleChange}
+              rows={5}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              placeholder="Write a clear description of the property, rooms, access, features, surroundings, and anything buyers or renters should know."
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block font-semibold text-gray-800">
+                Phone Number
+              </label>
               <input
                 type="text"
                 name="phone"
                 value={newProp.phone || ""}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="e.g. 57123456"
               />
             </div>
-            <div className="flex-1">
-              <label className="font-semibold mb-1 block">WhatsApp Number</label>
+
+            <div>
+              <label className="mb-1 block font-semibold text-gray-800">
+                WhatsApp Number
+              </label>
               <input
                 type="text"
                 name="whatsapp"
                 value={newProp.whatsapp || ""}
                 onChange={handleChange}
-                className="w-full border px-3 py-2 rounded"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="e.g. 57123456"
               />
             </div>
           </div>
 
           <div>
-            <label className="font-semibold mb-1 block">
-              Images {isEditMode ? "(choose new ones to replace current images)" : ""}
+            <label className="mb-1 block font-semibold text-gray-800">
+              Photos{" "}
+              {isEditMode
+                ? "(you can add more and remove the ones you do not want)"
+                : "(you can upload multiple photos)"}
             </label>
+
             <input
               type="file"
               multiple
               accept="image/*"
               onChange={handleImages}
+              className="block w-full text-sm text-gray-700"
             />
+
+            <p className="mt-2 text-xs text-gray-500">
+              You can select many photos. They will appear below, and you can
+              remove any photo before saving.
+            </p>
           </div>
 
           {imagesPreview.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {imagesPreview.map((src, i) => (
-                <img
-                  key={i}
-                  src={src}
-                  alt="preview"
-                  className="w-20 h-20 object-cover rounded"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
+                <div
+                  key={`${src}-${i}`}
+                  className="rounded-xl border border-gray-200 bg-gray-50 p-2"
+                >
+                  <img
+                    src={src}
+                    alt={`preview-${i}`}
+                    className="mb-2 h-24 w-full rounded-lg object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(i)}
+                    className="w-full rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100"
+                  >
+                    Remove Photo
+                  </button>
+                </div>
               ))}
             </div>
           )}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={() => setShowListModal(false)}
-              className="px-4 py-2 border rounded"
+              className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-50"
             >
               Cancel
             </button>
+
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded"
+              className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
               {loading
-                ? (isEditMode ? "Updating..." : "Listing...")
-                : (isEditMode ? "Update Property" : "List Property")}
+                ? isEditMode
+                  ? "Updating..."
+                  : "Listing..."
+                : isEditMode
+                ? "Update Property"
+                : "List Property"}
             </button>
           </div>
         </form>
