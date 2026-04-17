@@ -18,6 +18,19 @@ export default function Dashboard({
   const [editProp, setEditProp] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    whatsapp: "",
+  });
+
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
   const token = localStorage.getItem("token");
 
   const getCurrentUserId = () =>
@@ -46,6 +59,15 @@ export default function Dashboard({
       .toLowerCase()
       .trim();
 
+  const getCurrentUserEmail = () =>
+    currentUser?.email || currentUser?.user?.email || "";
+
+  const getCurrentUserPhone = () =>
+    currentUser?.phone || currentUser?.user?.phone || "";
+
+  const getCurrentUserWhatsapp = () =>
+    currentUser?.whatsapp || currentUser?.user?.whatsapp || "";
+
   const isAgent = useMemo(() => {
     const role = getCurrentUserRole();
     return (
@@ -61,6 +83,17 @@ export default function Dashboard({
   useEffect(() => {
     setActiveDataView(isAgent ? "all" : "saved");
   }, [isAgent]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    setProfileForm({
+      name: getCurrentUserName(),
+      email: getCurrentUserEmail(),
+      phone: getCurrentUserPhone(),
+      whatsapp: getCurrentUserWhatsapp(),
+    });
+  }, [currentUser]);
 
   const fallbackImage =
     "data:image/svg+xml;charset=UTF-8," +
@@ -217,6 +250,14 @@ export default function Dashboard({
         if (key === "images") return;
         if (key === "_id") return;
 
+        if (key === "removedExistingImages") {
+          formData.append(
+            "removedExistingImages",
+            JSON.stringify(Array.isArray(propData[key]) ? propData[key] : [])
+          );
+          return;
+        }
+
         formData.append(key, cleanValue(propData[key]));
       });
 
@@ -242,6 +283,101 @@ export default function Dashboard({
     }
   };
 
+  const handleProfileUpdate = async () => {
+    if (!token) {
+      alert("You must be logged in");
+      return;
+    }
+
+    if (!profileForm.name.trim()) {
+      alert("Name is required");
+      return;
+    }
+
+    if (!profileForm.email.trim()) {
+      alert("Email is required");
+      return;
+    }
+
+    try {
+      await axios.put(`${API_URL}/auth/update-profile`, profileForm, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+
+        const updatedUser = {
+          ...parsedUser,
+          name: profileForm.name,
+          email: profileForm.email,
+          phone: profileForm.phone,
+          whatsapp: profileForm.whatsapp,
+          user: parsedUser.user
+            ? {
+                ...parsedUser.user,
+                name: profileForm.name,
+                email: profileForm.email,
+                phone: profileForm.phone,
+                whatsapp: profileForm.whatsapp,
+              }
+            : parsedUser.user,
+        };
+
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+
+      alert("Profile updated successfully");
+    } catch (err) {
+      console.error("Profile update failed:", err);
+      alert(err.response?.data?.error || "Failed to update profile");
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!token) {
+      alert("You must be logged in");
+      return;
+    }
+
+    if (!passwordForm.currentPassword) {
+      alert("Current password is required");
+      return;
+    }
+
+    if (!passwordForm.newPassword) {
+      alert("New password is required");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      alert("New password must be at least 6 characters");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+
+    try {
+      await axios.put(`${API_URL}/auth/change-password`, passwordForm, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      alert("Password updated successfully");
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (err) {
+      console.error("Password update failed:", err);
+      alert(err.response?.data?.error || "Failed to update password");
+    }
+  };
+
   const fmtPrice = (val) => `M ${Number(val || 0).toLocaleString()}`;
 
   const stats = useMemo(() => {
@@ -261,6 +397,7 @@ export default function Dashboard({
   }, [activeDataView, myProperties, savedProperties]);
 
   const getSectionTitle = () => {
+    if (activeDataView === "profile") return "My Profile";
     if (activeDataView === "saved") return "Saved Properties";
     if (activeDataView === "buy") return "For Sale";
     if (activeDataView === "rent") return "For Rent";
@@ -268,6 +405,9 @@ export default function Dashboard({
   };
 
   const getSectionText = () => {
+    if (activeDataView === "profile") {
+      return "Update your profile details and change your password securely.";
+    }
     if (activeDataView === "saved") {
       return "These are the properties you have saved. Click any card to open the full property details.";
     }
@@ -375,14 +515,15 @@ export default function Dashboard({
       </div>
 
       {isAgent ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
           <StatCard title="Total Listings" value={stats.total} stateKey="all" />
           <StatCard title="For Sale" value={stats.buyCount} stateKey="buy" />
           <StatCard title="For Rent" value={stats.rentCount} stateKey="rent" />
           <StatCard title="Saved Properties" value={stats.savedCount} stateKey="saved" />
+          <StatCard title="My Profile" value="Edit" stateKey="profile" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
           <StatCard
             title="Saved Properties"
             value={stats.savedCount}
@@ -404,6 +545,7 @@ export default function Dashboard({
               Go to Homepage
             </button>
           </div>
+          <StatCard title="My Profile" value="Edit" stateKey="profile" />
         </div>
       )}
 
@@ -412,7 +554,120 @@ export default function Dashboard({
         <p className="text-sm text-gray-500 mt-1">{getSectionText()}</p>
       </div>
 
-      {loadingProps ? (
+      {activeDataView === "profile" ? (
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <h2 className="text-xl font-semibold mb-4">My Profile</h2>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="text-sm text-gray-600">Full Name</label>
+              <input
+                type="text"
+                value={profileForm.name}
+                onChange={(e) =>
+                  setProfileForm({ ...profileForm, name: e.target.value })
+                }
+                className="w-full border rounded-lg px-3 py-2 mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600">Email</label>
+              <input
+                type="email"
+                value={profileForm.email}
+                onChange={(e) =>
+                  setProfileForm({ ...profileForm, email: e.target.value })
+                }
+                className="w-full border rounded-lg px-3 py-2 mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600">Phone</label>
+              <input
+                type="text"
+                value={profileForm.phone}
+                onChange={(e) =>
+                  setProfileForm({ ...profileForm, phone: e.target.value })
+                }
+                className="w-full border rounded-lg px-3 py-2 mt-1"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-600">WhatsApp</label>
+              <input
+                type="text"
+                value={profileForm.whatsapp}
+                onChange={(e) =>
+                  setProfileForm({ ...profileForm, whatsapp: e.target.value })
+                }
+                className="w-full border rounded-lg px-3 py-2 mt-1"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleProfileUpdate}
+            className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Save Profile
+          </button>
+
+          <hr className="my-8" />
+
+          <h3 className="text-lg font-semibold mb-4">Change Password</h3>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            <input
+              type="password"
+              placeholder="Current Password"
+              value={passwordForm.currentPassword}
+              onChange={(e) =>
+                setPasswordForm({
+                  ...passwordForm,
+                  currentPassword: e.target.value,
+                })
+              }
+              className="border rounded-lg px-3 py-2"
+            />
+
+            <input
+              type="password"
+              placeholder="New Password"
+              value={passwordForm.newPassword}
+              onChange={(e) =>
+                setPasswordForm({
+                  ...passwordForm,
+                  newPassword: e.target.value,
+                })
+              }
+              className="border rounded-lg px-3 py-2"
+            />
+
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              value={passwordForm.confirmPassword}
+              onChange={(e) =>
+                setPasswordForm({
+                  ...passwordForm,
+                  confirmPassword: e.target.value,
+                })
+              }
+              className="border rounded-lg px-3 py-2"
+            />
+          </div>
+
+          <button
+            onClick={handlePasswordChange}
+            className="mt-4 bg-slate-700 text-white px-5 py-2 rounded-lg hover:bg-slate-800"
+          >
+            Update Password
+          </button>
+        </div>
+      ) : loadingProps ? (
         renderSkeletons()
       ) : displayedProperties.length === 0 ? (
         <div className="bg-white rounded-xl border border-dashed border-gray-300 p-10 text-center shadow-sm">
