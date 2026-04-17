@@ -153,7 +153,7 @@ export default function ListModal({
     const allImages = Array.isArray(newProp.images) ? newProp.images : [];
     const newImageFiles = allImages.filter(isNewFileImage);
 
-    const retainedImages = allImages
+    let retainedImages = allImages
       .filter(isExistingImage)
       .map((img) => {
         if (typeof img === "string") {
@@ -170,6 +170,20 @@ export default function ListModal({
         return null;
       })
       .filter(Boolean);
+
+    if (isEditMode && retainedImages.length === 0 && allImages.length > 0) {
+      retainedImages = allImages
+        .filter(isExistingImage)
+        .map((img) =>
+          typeof img === "string"
+            ? { url: img }
+            : {
+                url: img.url,
+                public_id: img.public_id || null,
+              }
+        )
+        .filter(Boolean);
+    }
 
     const propData = {
       ...newProp,
