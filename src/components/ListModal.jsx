@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 export default function ListModal({
   newProp,
@@ -10,6 +10,7 @@ export default function ListModal({
 }) {
   const [imagesPreview, setImagesPreview] = useState([]);
   const [locationStatus, setLocationStatus] = useState("");
+  const originalImagesRef = useRef([]);
 
   const isEditMode = Boolean(newProp?.id || newProp?._id);
 
@@ -39,31 +40,38 @@ export default function ListModal({
   const getPreviewUrl = (img) => {
     if (!img) return null;
 
+    if (typeof img === "string" && img.trim()) return img;
+    if (img instanceof File || img instanceof Blob) return URL.createObjectURL(img);
+    if (typeof img === "object" && img.url) return img.url;
+
+    return null;
+  };
+
+  const normalizeExistingImage = (img) => {
+    if (!img) return null;
+
     if (typeof img === "string" && img.trim()) {
-      return img;
+      return { url: img, public_id: null };
     }
 
-    if (img instanceof File || img instanceof Blob) {
-      return URL.createObjectURL(img);
-    }
-
-    if (typeof img === "object" && img.url) {
-      return img.url;
+    if (
+      typeof img === "object" &&
+      !(img instanceof File) &&
+      !(img instanceof Blob) &&
+      typeof img.url === "string" &&
+      img.url.trim()
+    ) {
+      return {
+        url: img.url,
+        public_id: img.public_id || null,
+      };
     }
 
     return null;
   };
 
   const isExistingImage = (img) => {
-    return (
-      (typeof img === "string" && img.trim()) ||
-      (img &&
-        typeof img === "object" &&
-        !(img instanceof File) &&
-        !(img instanceof Blob) &&
-        typeof img.url === "string" &&
-        img.url.trim())
-    );
+    return Boolean(normalizeExistingImage(img));
   };
 
   const isNewFileImage = (img) => img instanceof File || img instanceof Blob;
@@ -86,6 +94,23 @@ export default function ListModal({
     };
   }, [newProp?.images]);
 
+  useEffect(() => {
+    if (!isEditMode) {
+      originalImagesRef.current = [];
+      return;
+    }
+
+    const currentImages = Array.isArray(newProp?.images) ? newProp.images : [];
+    const existingImages = currentImages
+      .filter(isExistingImage)
+      .map(normalizeExistingImage)
+      .filter(Boolean);
+
+    if (originalImagesRef.current.length === 0 && existingImages.length > 0) {
+      originalImagesRef.current = existingImages;
+    }
+  }, [isEditMode, newProp?.images]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -97,9 +122,7 @@ export default function ListModal({
       return;
     }
 
-    if (
-      ["price", "rent_price", "bedrooms", "bathrooms", "size"].includes(name)
-    ) {
+    if (["price", "rent_price", "bedrooms", "bathrooms", "size"].includes(name)) {
       setNewProp((prev) => ({
         ...prev,
         [name]: value === "" ? "" : Number(value),
@@ -153,44 +176,36 @@ export default function ListModal({
     const allImages = Array.isArray(newProp.images) ? newProp.images : [];
     const newImageFiles = allImages.filter(isNewFileImage);
 
-    let retainedImages = allImages
+    const currentExistingImages = allImages
       .filter(isExistingImage)
-      .map((img) => {
-        if (typeof img === "string") {
-          return { url: img };
-        }
-
-        if (img && typeof img === "object") {
-          return {
-            url: img.url,
-            public_id: img.public_id || null,
-          };
-        }
-
-        return null;
-      })
+      .map(normalizeExistingImage)
       .filter(Boolean);
 
-    if (isEditMode && retainedImages.length === 0 && allImages.length > 0) {
-      retainedImages = allImages
-        .filter(isExistingImage)
-        .map((img) =>
-          typeof img === "string"
-            ? { url: img }
-            : {
-                url: img.url,
-                public_id: img.public_id || null,
-              }
+    const originalExistingImages = Array.isArray(originalImagesRef.current)
+      ? originalImagesRef.current
+      : [];
+
+    const removedExistingImages = isEditMode
+      ? originalExistingImages.filter(
+          (originalImg) =>
+            !currentExistingImages.some(
+              (currentImg) =>
+                (originalImg?.public_id &&
+                  currentImg?.public_id &&
+                  originalImg.public_id === currentImg.public_id) ||
+                (originalImg?.url &&
+                  currentImg?.url &&
+                  originalImg.url === currentImg.url)
+            )
         )
-        .filter(Boolean);
-    }
+      : [];
 
     const propData = {
       ...newProp,
       description: newProp.description || "",
       lat: newProp.lat === "" ? null : newProp.lat,
       lng: newProp.lng === "" ? null : newProp.lng,
-      retainedImages,
+      removedExistingImages,
       agent_id:
         currentUser?.id ||
         currentUser?.user?.id ||
@@ -246,8 +261,7 @@ export default function ListModal({
               {isEditMode ? "Edit Property" : "List New Property"}
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Add full property details, photos, location, and contact
-              information.
+              Add full property details, photos, location, and contact information.
             </p>
           </div>
 
@@ -263,9 +277,7 @@ export default function ListModal({
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
-              <label className="mb-1 block font-semibold text-gray-800">
-                Title
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">Title</label>
               <input
                 type="text"
                 name="title"
@@ -278,9 +290,7 @@ export default function ListModal({
             </div>
 
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                Property Type
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">Property Type</label>
               <select
                 name="type"
                 value={newProp.type || "House"}
@@ -294,9 +304,7 @@ export default function ListModal({
             </div>
 
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                Purpose
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">Purpose</label>
               <select
                 name="purpose"
                 value={newProp.purpose || "buy"}
@@ -309,9 +317,7 @@ export default function ListModal({
             </div>
 
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                District
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">District</label>
               <select
                 name="district"
                 value={newProp.district || "Maseru"}
@@ -325,9 +331,7 @@ export default function ListModal({
             </div>
 
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                Street / Area
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">Street / Area</label>
               <input
                 type="text"
                 name="location"
@@ -342,9 +346,7 @@ export default function ListModal({
 
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                Latitude (Optional)
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">Latitude (Optional)</label>
               <input
                 type="number"
                 name="lat"
@@ -357,9 +359,7 @@ export default function ListModal({
             </div>
 
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                Longitude (Optional)
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">Longitude (Optional)</label>
               <input
                 type="number"
                 name="lng"
@@ -382,15 +382,11 @@ export default function ListModal({
             </div>
           </div>
 
-          {locationStatus && (
-            <p className="text-sm text-gray-600">{locationStatus}</p>
-          )}
+          {locationStatus && <p className="text-sm text-gray-600">{locationStatus}</p>}
 
           {newProp.purpose === "buy" && (
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                Price (Buy)
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">Price (Buy)</label>
               <input
                 type="number"
                 name="price"
@@ -404,9 +400,7 @@ export default function ListModal({
 
           {newProp.purpose === "rent" && (
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                Rent Price
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">Rent Price</label>
               <input
                 type="number"
                 name="rent_price"
@@ -421,9 +415,7 @@ export default function ListModal({
           {showBedroomBathroomFields && (
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block font-semibold text-gray-800">
-                  Bedrooms / Rooms
-                </label>
+                <label className="mb-1 block font-semibold text-gray-800">Bedrooms / Rooms</label>
                 <input
                   type="number"
                   name="bedrooms"
@@ -435,9 +427,7 @@ export default function ListModal({
               </div>
 
               <div>
-                <label className="mb-1 block font-semibold text-gray-800">
-                  Bathrooms
-                </label>
+                <label className="mb-1 block font-semibold text-gray-800">Bathrooms</label>
                 <input
                   type="number"
                   name="bathrooms"
@@ -452,9 +442,7 @@ export default function ListModal({
 
           {showSizeField && (
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                Size (m²)
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">Size (m²)</label>
               <input
                 type="number"
                 name="size"
@@ -467,9 +455,7 @@ export default function ListModal({
           )}
 
           <div>
-            <label className="mb-1 block font-semibold text-gray-800">
-              Description
-            </label>
+            <label className="mb-1 block font-semibold text-gray-800">Description</label>
             <textarea
               name="description"
               value={newProp.description || ""}
@@ -482,9 +468,7 @@ export default function ListModal({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                Phone Number
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">Phone Number</label>
               <input
                 type="text"
                 name="phone"
@@ -496,9 +480,7 @@ export default function ListModal({
             </div>
 
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">
-                WhatsApp Number
-              </label>
+              <label className="mb-1 block font-semibold text-gray-800">WhatsApp Number</label>
               <input
                 type="text"
                 name="whatsapp"
@@ -527,8 +509,7 @@ export default function ListModal({
             />
 
             <p className="mt-2 text-xs text-gray-500">
-              You can select many photos. They will appear below, and you can
-              remove any photo before saving.
+              You can select many photos. They will appear below, and you can remove any photo before saving.
             </p>
           </div>
 

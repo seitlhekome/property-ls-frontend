@@ -472,8 +472,11 @@ export default function App() {
 
         const value = propData[key];
 
-        if (key === "retainedImages") {
-          fd.append("retainedImages", JSON.stringify(Array.isArray(value) ? value : []));
+        if (key === "removedExistingImages") {
+          fd.append(
+            "removedExistingImages",
+            JSON.stringify(Array.isArray(value) ? value : [])
+          );
           return;
         }
 
