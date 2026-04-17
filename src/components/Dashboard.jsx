@@ -31,6 +31,9 @@ export default function Dashboard({
     confirmPassword: "",
   });
 
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
   const token = localStorage.getItem("token");
 
   const getCurrentUserId = () =>
@@ -76,6 +79,10 @@ export default function Dashboard({
       role === "seller" ||
       role === "property_agent"
     );
+  }, [currentUser]);
+
+  const isAdmin = useMemo(() => {
+    return getCurrentUserRole() === "admin";
   }, [currentUser]);
 
   const [activeDataView, setActiveDataView] = useState("saved");
@@ -178,9 +185,35 @@ export default function Dashboard({
     }
   }, [currentUser, token]);
 
+  const fetchUsers = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      setLoadingUsers(true);
+
+      const res = await axios.get(`${API_URL}/auth/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setUsers(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Fetch users failed:", err);
+      alert(err.response?.data?.error || "Failed to load users");
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [token]);
+
   useEffect(() => {
     fetchProperties();
   }, [fetchProperties]);
+
+  useEffect(() => {
+    if (activeDataView === "users" && isAdmin) {
+      fetchUsers();
+    }
+  }, [activeDataView, isAdmin, fetchUsers]);
 
   const savedProperties = useMemo(() => {
     return allProperties.filter((prop) =>
@@ -377,6 +410,39 @@ export default function Dashboard({
     }
   };
 
+  const handleAdminResetPassword = async (user) => {
+    if (!token) {
+      alert("You must be logged in");
+      return;
+    }
+
+    const newPassword = window.prompt(
+      `Enter a temporary password for ${user.name || user.email}:`
+    );
+
+    if (!newPassword) return;
+
+    if (newPassword.length < 6) {
+      alert("Password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      await axios.put(
+        `${API_URL}/auth/admin-reset-password/${user.id}`,
+        { newPassword },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      alert("Password reset successfully");
+    } catch (err) {
+      console.error("Admin reset password failed:", err);
+      alert(err.response?.data?.error || "Failed to reset password");
+    }
+  };
+
   const fmtPrice = (val) => `M ${Number(val || 0).toLocaleString()}`;
 
   const stats = useMemo(() => {
@@ -397,6 +463,7 @@ export default function Dashboard({
 
   const getSectionTitle = () => {
     if (activeDataView === "profile") return "My Profile";
+    if (activeDataView === "users") return "Manage Users";
     if (activeDataView === "saved") return "Saved Properties";
     if (activeDataView === "buy") return "For Sale";
     if (activeDataView === "rent") return "For Rent";
@@ -406,6 +473,9 @@ export default function Dashboard({
   const getSectionText = () => {
     if (activeDataView === "profile") {
       return "Update your profile details and change your password securely.";
+    }
+    if (activeDataView === "users") {
+      return "View registered users and reset passwords when needed.";
     }
     if (activeDataView === "saved") {
       return "These are the properties you have saved. Click any card to open the full property details.";
@@ -475,7 +545,7 @@ export default function Dashboard({
               {isAgent ? "Agent Dashboard" : "Buyer Dashboard"}
             </p>
             <h1 className="text-3xl font-bold text-gray-900">
-              Welcome, <span className="text-blue-600">{getCurrentUserName()}</span>
+              Dashboard
             </h1>
             <p className="text-gray-600 mt-2">
               {isAgent
@@ -499,6 +569,15 @@ export default function Dashboard({
               >
                 Edit Profile
               </button>
+
+              {isAdmin && (
+                <button
+                  onClick={() => setActiveDataView("users")}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-100"
+                >
+                  Manage Users
+                </button>
+              )}
 
               <button
                 onClick={() => setShowListModal(true)}
@@ -528,12 +607,25 @@ export default function Dashboard({
       </div>
 
       {isAgent ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
+        <div
+          className={`grid gap-4 mb-8 ${
+            isAdmin
+              ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-6"
+              : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-5"
+          }`}
+        >
           <StatCard title="Total Listings" value={stats.total} stateKey="all" />
           <StatCard title="For Sale" value={stats.buyCount} stateKey="buy" />
           <StatCard title="For Rent" value={stats.rentCount} stateKey="rent" />
           <StatCard title="Saved Properties" value={stats.savedCount} stateKey="saved" />
           <StatCard title="My Profile" value="Edit" stateKey="profile" />
+          {isAdmin && (
+            <StatCard
+              title="Users"
+              value={users.length > 0 ? users.length : "View"}
+              stateKey="users"
+            />
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
@@ -679,6 +771,88 @@ export default function Dashboard({
           >
             Update Password
           </button>
+        </div>
+      ) : activeDataView === "users" && isAdmin ? (
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Manage Users</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                View registered users and reset passwords when needed.
+              </p>
+            </div>
+
+            <button
+              onClick={fetchUsers}
+              className="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {loadingUsers ? (
+            <p className="text-sm text-gray-500">Loading users...</p>
+          ) : users.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center">
+              <p className="text-gray-500">No users found.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Email
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Role
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Phone
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      WhatsApp
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.id} className="border-t border-gray-200">
+                      <td className="px-4 py-3 text-sm text-gray-800">
+                        {user.name || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-800">
+                        {user.email || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-800">
+                        {user.role || "user"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-800">
+                        {user.phone || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-800">
+                        {user.whatsapp || "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleAdminResetPassword(user)}
+                          className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                        >
+                          Reset Password
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       ) : loadingProps ? (
         renderSkeletons()
