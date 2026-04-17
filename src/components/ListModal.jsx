@@ -152,9 +152,24 @@ export default function ListModal({
 
     const allImages = Array.isArray(newProp.images) ? newProp.images : [];
     const newImageFiles = allImages.filter(isNewFileImage);
+
     const retainedImages = allImages
       .filter(isExistingImage)
-      .map((img) => (typeof img === "string" ? img : img.url));
+      .map((img) => {
+        if (typeof img === "string") {
+          return { url: img };
+        }
+
+        if (img && typeof img === "object") {
+          return {
+            url: img.url,
+            public_id: img.public_id || null,
+          };
+        }
+
+        return null;
+      })
+      .filter(Boolean);
 
     const propData = {
       ...newProp,
