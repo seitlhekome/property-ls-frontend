@@ -300,32 +300,31 @@ export default function Dashboard({
     }
 
     try {
-      await axios.put(`${API_URL}/auth/update-profile`, profileForm, {
+      const res = await axios.put(`${API_URL}/auth/update-profile`, profileForm, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
+      const updatedUserFromApi = res.data?.user;
 
-        const updatedUser = {
-          ...parsedUser,
-          name: profileForm.name,
-          email: profileForm.email,
-          phone: profileForm.phone,
-          whatsapp: profileForm.whatsapp,
-          user: parsedUser.user
-            ? {
-                ...parsedUser.user,
-                name: profileForm.name,
-                email: profileForm.email,
-                phone: profileForm.phone,
-                whatsapp: profileForm.whatsapp,
-              }
-            : parsedUser.user,
-        };
+      if (updatedUserFromApi) {
+        const storedUser = localStorage.getItem("user");
 
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+
+          const updatedUser = {
+            ...parsedUser,
+            ...updatedUserFromApi,
+            user: parsedUser.user
+              ? {
+                  ...parsedUser.user,
+                  ...updatedUserFromApi,
+                }
+              : parsedUser.user,
+          };
+
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
       }
 
       alert("Profile updated successfully");
@@ -486,12 +485,19 @@ export default function Dashboard({
           </div>
 
           {isAgent ? (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => navigate("/")}
                 className="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
               >
                 Go to Homepage
+              </button>
+
+              <button
+                onClick={() => setActiveDataView("profile")}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-100"
+              >
+                Edit Profile
               </button>
 
               <button
@@ -502,12 +508,19 @@ export default function Dashboard({
               </button>
             </div>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => navigate("/")}
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
               >
                 Browse More
+              </button>
+
+              <button
+                onClick={() => setActiveDataView("profile")}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-100"
+              >
+                Edit Profile
               </button>
             </div>
           )}
