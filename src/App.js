@@ -16,7 +16,7 @@ import SavedProperties from "./components/SavedProperties";
 
 import { API_URL } from "./config";
 
-const GA_MEASUREMENT_ID = "G-XXXXXXXXXX";
+const GA_MEASUREMENT_ID = "G-D32DK9BLQ7";
 
 export default function App() {
   const navigate = useNavigate();
@@ -51,20 +51,20 @@ export default function App() {
   });
 
   useEffect(() => {
-  if (GA_MEASUREMENT_ID) {
-    ReactGA.initialize(GA_MEASUREMENT_ID);
-  }
-}, []);
+    if (GA_MEASUREMENT_ID) {
+      ReactGA.initialize(GA_MEASUREMENT_ID);
+    }
+  }, []);
 
-useEffect(() => {
-  if (GA_MEASUREMENT_ID) {
-    ReactGA.send({
-      hitType: "pageview",
-      page: location.pathname + location.search,
-      title: document.title,
-    });
-  }
-}, [location]);
+  useEffect(() => {
+    if (GA_MEASUREMENT_ID) {
+      ReactGA.send({
+        hitType: "pageview",
+        page: location.pathname + location.search,
+        title: document.title,
+      });
+    }
+  }, [location]);
 
   const initialPropertyState = useMemo(
     () => ({
