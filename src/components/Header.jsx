@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Header({
@@ -15,6 +15,7 @@ export default function Header({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [showFilters, setShowFilters] = useState(false);
 
   const currentRole = (
     currentUser?.role ||
@@ -56,6 +57,23 @@ export default function Header({
 
   const infoBadgeClass =
     "rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700";
+
+  const filterOptionClass =
+    "rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700";
+
+  const applyQuickFilter = (value) => {
+    if (setSearchQuery) {
+      setSearchQuery(value);
+    }
+    setShowFilters(false);
+  };
+
+  const clearFilters = () => {
+    if (setSearchQuery) {
+      setSearchQuery("");
+    }
+    setShowFilters(false);
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
@@ -105,15 +123,112 @@ export default function Header({
                   </button>
                 </div>
 
-                <input
-                  type="text"
-                  placeholder="Search by title, district, or location"
-                  value={searchQuery || ""}
-                  onChange={(e) =>
-                    setSearchQuery && setSearchQuery(e.target.value)
-                  }
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 lg:max-w-md"
-                />
+                <div className="relative flex w-full flex-col gap-2 sm:flex-row lg:max-w-xl">
+                  <input
+                    type="text"
+                    placeholder="Search by title, district, or location"
+                    value={searchQuery || ""}
+                    onChange={(e) =>
+                      setSearchQuery && setSearchQuery(e.target.value)
+                    }
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters((prev) => !prev)}
+                    className={`${secondaryButtonClass} flex items-center justify-center gap-2`}
+                  >
+                    <span>Filter</span>
+                    <span className="text-xs">{showFilters ? "▲" : "▼"}</span>
+                  </button>
+
+                  {showFilters && (
+                    <div className="absolute right-0 top-full z-50 mt-2 w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-xl sm:w-[420px]">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            Quick Filters
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Filter by property type or district
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={clearFilters}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          Clear
+                        </button>
+                      </div>
+
+                      <div className="mb-4">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Property Type
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => applyQuickFilter("House")}
+                            className={filterOptionClass}
+                          >
+                            House
+                          </button>
+                          <button
+                            onClick={() => applyQuickFilter("Apartment")}
+                            className={filterOptionClass}
+                          >
+                            Apartment
+                          </button>
+                          <button
+                            onClick={() => applyQuickFilter("Land")}
+                            className={filterOptionClass}
+                          >
+                            Land
+                          </button>
+                          <button
+                            onClick={() => applyQuickFilter("Guesthouse")}
+                            className={filterOptionClass}
+                          >
+                            Guesthouse
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Popular Districts
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => applyQuickFilter("Maseru")}
+                            className={filterOptionClass}
+                          >
+                            Maseru
+                          </button>
+                          <button
+                            onClick={() => applyQuickFilter("Leribe")}
+                            className={filterOptionClass}
+                          >
+                            Leribe
+                          </button>
+                          <button
+                            onClick={() => applyQuickFilter("Berea")}
+                            className={filterOptionClass}
+                          >
+                            Berea
+                          </button>
+                          <button
+                            onClick={() => applyQuickFilter("Mafeteng")}
+                            className={filterOptionClass}
+                          >
+                            Mafeteng
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -121,7 +236,8 @@ export default function Header({
           <div className="flex flex-wrap items-center justify-center gap-2 xl:justify-end">
             {currentUser && (
               <div className={infoBadgeClass}>
-                Welcome, <span className="font-semibold text-blue-700">{userName}</span>
+                Welcome,{" "}
+                <span className="font-semibold text-blue-700">{userName}</span>
               </div>
             )}
 
