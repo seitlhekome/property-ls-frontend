@@ -12,6 +12,8 @@ export default function Header({
   searchQuery,
   setSearchQuery,
   filteredProperties,
+  filters,
+  setFilters,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,21 +60,23 @@ export default function Header({
   const infoBadgeClass =
     "rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700";
 
-  const filterOptionClass =
-    "rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700";
-
-  const applyQuickFilter = (value) => {
-    if (setSearchQuery) {
-      setSearchQuery(value);
-    }
-    setShowFilters(false);
-  };
+  const fieldClass =
+    "w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
   const clearFilters = () => {
+    if (setFilters) {
+      setFilters({
+        district: "",
+        type: "",
+        minPrice: "",
+        maxPrice: "",
+        bedrooms: "",
+      });
+    }
+
     if (setSearchQuery) {
       setSearchQuery("");
     }
-    setShowFilters(false);
   };
 
   return (
@@ -144,14 +148,14 @@ export default function Header({
                   </button>
 
                   {showFilters && (
-                    <div className="absolute right-0 top-full z-50 mt-2 w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-xl sm:w-[420px]">
-                      <div className="mb-3 flex items-center justify-between">
+                    <div className="absolute right-0 top-full z-50 mt-2 w-full rounded-2xl border border-gray-200 bg-white p-5 shadow-xl sm:w-[460px]">
+                      <div className="mb-4 flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-semibold text-gray-900">
-                            Quick Filters
+                          <p className="text-base font-semibold text-gray-900">
+                            Advanced Filters
                           </p>
                           <p className="text-xs text-gray-500">
-                            Filter by property type or district
+                            Narrow down properties quickly
                           </p>
                         </div>
 
@@ -163,68 +167,138 @@ export default function Header({
                         </button>
                       </div>
 
-                      <div className="mb-4">
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Property Type
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => applyQuickFilter("House")}
-                            className={filterOptionClass}
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            District
+                          </label>
+
+                          <select
+                            value={filters?.district || ""}
+                            onChange={(e) =>
+                              setFilters &&
+                              setFilters((prev) => ({
+                                ...prev,
+                                district: e.target.value,
+                              }))
+                            }
+                            className={fieldClass}
                           >
-                            House
-                          </button>
-                          <button
-                            onClick={() => applyQuickFilter("Apartment")}
-                            className={filterOptionClass}
+                            <option value="">All Districts</option>
+                            <option value="Maseru">Maseru</option>
+                            <option value="Butha Buthe">Butha Buthe</option>
+                            <option value="Leribe">Leribe</option>
+                            <option value="Berea">Berea</option>
+                            <option value="Mafeteng">Mafeteng</option>
+                            <option value="Mohale's Hoek">Mohale's Hoek</option>
+                            <option value="Quthing">Quthing</option>
+                            <option value="Qacha's Neck">Qacha's Neck</option>
+                            <option value="Thaba Tseka">Thaba Tseka</option>
+                            <option value="Mokhotlong">Mokhotlong</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Property Type
+                          </label>
+
+                          <select
+                            value={filters?.type || ""}
+                            onChange={(e) =>
+                              setFilters &&
+                              setFilters((prev) => ({
+                                ...prev,
+                                type: e.target.value,
+                              }))
+                            }
+                            className={fieldClass}
                           >
-                            Apartment
-                          </button>
-                          <button
-                            onClick={() => applyQuickFilter("Land")}
-                            className={filterOptionClass}
+                            <option value="">All Types</option>
+                            <option value="House">House</option>
+                            <option value="Apartment">Apartment</option>
+                            <option value="Land">Land</option>
+                            <option value="Guesthouse">Guesthouse</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Min Price
+                          </label>
+
+                          <input
+                            type="number"
+                            value={filters?.minPrice || ""}
+                            onChange={(e) =>
+                              setFilters &&
+                              setFilters((prev) => ({
+                                ...prev,
+                                minPrice: e.target.value,
+                              }))
+                            }
+                            placeholder="M 0"
+                            className={fieldClass}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Max Price
+                          </label>
+
+                          <input
+                            type="number"
+                            value={filters?.maxPrice || ""}
+                            onChange={(e) =>
+                              setFilters &&
+                              setFilters((prev) => ({
+                                ...prev,
+                                maxPrice: e.target.value,
+                              }))
+                            }
+                            placeholder="M 500000"
+                            className={fieldClass}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Bedrooms
+                          </label>
+
+                          <select
+                            value={filters?.bedrooms || ""}
+                            onChange={(e) =>
+                              setFilters &&
+                              setFilters((prev) => ({
+                                ...prev,
+                                bedrooms: e.target.value,
+                              }))
+                            }
+                            className={fieldClass}
                           >
-                            Land
-                          </button>
-                          <button
-                            onClick={() => applyQuickFilter("Guesthouse")}
-                            className={filterOptionClass}
-                          >
-                            Guesthouse
-                          </button>
+                            <option value="">Any</option>
+                            <option value="1">1+</option>
+                            <option value="2">2+</option>
+                            <option value="3">3+</option>
+                            <option value="4">4+</option>
+                            <option value="5">5+</option>
+                          </select>
                         </div>
                       </div>
 
-                      <div>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                          Popular Districts
+                      <div className="mt-5 flex items-center justify-between gap-3">
+                        <p className="text-sm text-gray-500">
+                          {filteredProperties?.length || 0} properties found
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => applyQuickFilter("Maseru")}
-                            className={filterOptionClass}
-                          >
-                            Maseru
-                          </button>
-                          <button
-                            onClick={() => applyQuickFilter("Leribe")}
-                            className={filterOptionClass}
-                          >
-                            Leribe
-                          </button>
-                          <button
-                            onClick={() => applyQuickFilter("Berea")}
-                            className={filterOptionClass}
-                          >
-                            Berea
-                          </button>
-                          <button
-                            onClick={() => applyQuickFilter("Mafeteng")}
-                            className={filterOptionClass}
-                          >
-                            Mafeteng
-                          </button>
-                        </div>
+
+                        <button
+                          onClick={() => setShowFilters(false)}
+                          className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                        >
+                          Apply Filters
+                        </button>
                       </div>
                     </div>
                   )}

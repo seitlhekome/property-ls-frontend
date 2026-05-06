@@ -24,6 +24,15 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState("rent");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [filters, setFilters] = useState({
+    district: "",
+    type: "",
+    minPrice: "",
+    maxPrice: "",
+    bedrooms: "",
+  });
+
   const [showCalculator, setShowCalculator] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showListModal, setShowListModal] = useState(false);
@@ -573,9 +582,36 @@ export default function App() {
         p.type?.toLowerCase().includes(q) ||
         p.description?.toLowerCase().includes(q);
 
-      return matchesTab && matchesSearch;
+      const matchesDistrict =
+        !filters.district ||
+        p.district?.toLowerCase() === filters.district.toLowerCase();
+
+      const matchesType =
+        !filters.type ||
+        p.type?.toLowerCase() === filters.type.toLowerCase();
+
+      const propertyPrice = Number(p.price || p.rent_price || 0);
+
+      const matchesMinPrice =
+        !filters.minPrice || propertyPrice >= Number(filters.minPrice);
+
+      const matchesMaxPrice =
+        !filters.maxPrice || propertyPrice <= Number(filters.maxPrice);
+
+      const matchesBedrooms =
+        !filters.bedrooms || Number(p.bedrooms || 0) >= Number(filters.bedrooms);
+
+      return (
+        matchesTab &&
+        matchesSearch &&
+        matchesDistrict &&
+        matchesType &&
+        matchesMinPrice &&
+        matchesMaxPrice &&
+        matchesBedrooms
+      );
     });
-  }, [properties, activeTab, searchQuery]);
+  }, [properties, activeTab, searchQuery, filters]);
 
   const currentUserId = getCurrentUserId();
   const isAgent =
@@ -595,6 +631,8 @@ export default function App() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         filteredProperties={filteredProperties}
+        filters={filters}
+        setFilters={setFilters}
       />
 
       {authNotice && (
