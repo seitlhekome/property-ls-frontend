@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+import ReactGA from "react-ga4";
 
 import Header from "./components/Header";
 import PropertyList from "./components/PropertyList";
@@ -14,6 +15,8 @@ import PropertyMap from "./components/PropertyMap";
 import SavedProperties from "./components/SavedProperties";
 
 import { API_URL } from "./config";
+
+const GA_MEASUREMENT_ID = "G-XXXXXXXXXX";
 
 export default function App() {
   const navigate = useNavigate();
@@ -46,6 +49,22 @@ export default function App() {
     role: "user",
     whatsapp: "",
   });
+
+  useEffect(() => {
+    if (GA_MEASUREMENT_ID && GA_MEASUREMENT_ID !== "G-XXXXXXXXXX") {
+      ReactGA.initialize(GA_MEASUREMENT_ID);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (GA_MEASUREMENT_ID && GA_MEASUREMENT_ID !== "G-XXXXXXXXXX") {
+      ReactGA.send({
+        hitType: "pageview",
+        page: location.pathname + location.search,
+        title: document.title,
+      });
+    }
+  }, [location]);
 
   const initialPropertyState = useMemo(
     () => ({
