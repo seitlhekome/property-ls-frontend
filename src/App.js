@@ -51,13 +51,13 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (GA_MEASUREMENT_ID && GA_MEASUREMENT_ID !== "G-XXXXXXXXXX") {
+    if (GA_MEASUREMENT_ID && GA_MEASUREMENT_ID !== "G-D32DK9BLQ7") {
       ReactGA.initialize(GA_MEASUREMENT_ID);
     }
   }, []);
 
   useEffect(() => {
-    if (GA_MEASUREMENT_ID && GA_MEASUREMENT_ID !== "G-XXXXXXXXXX") {
+    if (GA_MEASUREMENT_ID && GA_MEASUREMENT_ID !== "G-D32DK9BLQ7") {
       ReactGA.send({
         hitType: "pageview",
         page: location.pathname + location.search,
