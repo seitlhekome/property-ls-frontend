@@ -70,8 +70,13 @@ function getPropertyPosition(property) {
   const lat = property.lat ?? property.latitude;
   const lng = property.lng ?? property.longitude;
 
-  if (lat != null && lng != null && lat !== "" && lng !== "") {
-    return [Number(lat), Number(lng)];
+  if (lat !== null && lat !== undefined && lng !== null && lng !== undefined) {
+    const parsedLat = Number(lat);
+    const parsedLng = Number(lng);
+
+    if (!Number.isNaN(parsedLat) && !Number.isNaN(parsedLng)) {
+      return [parsedLat, parsedLng];
+    }
   }
 
   if (property.district) {
@@ -82,17 +87,13 @@ function getPropertyPosition(property) {
 }
 
 function getPurposeLabel(property) {
-  if (property?.purpose === "buy") return "For Sale";
   if (property?.purpose === "rent") return "For Rent";
+  if (property?.purpose === "buy") return "For Sale";
   return "Property";
 }
 
 function getDisplayPrice(property) {
   if (!property) return "Price not specified";
-
-  if (property.purpose === "buy") {
-    return formatMoney(property.price);
-  }
 
   if (property.purpose === "rent") {
     return property.rent_price
@@ -112,16 +113,14 @@ function createPropertyIcon(property, isActive) {
       : "default";
 
   return L.divIcon({
-    className: `property-map-marker ${purposeClass} ${
-      isActive ? "active" : ""
-    }`,
+    className: `property-map-marker ${purposeClass} ${isActive ? "active" : ""}`,
     html: `
       <div class="property-marker-dot">
         <span>${property?.purpose === "rent" ? "R" : property?.purpose === "buy" ? "S" : "P"}</span>
       </div>
     `,
-    iconSize: [42, 42],
-    iconAnchor: [21, 42],
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
     popupAnchor: [0, -38],
   });
 }
@@ -157,20 +156,7 @@ export default function PropertyMap({ properties = [], onBack }) {
 
   const [userLocation, setUserLocation] = useState(null);
   const [activeProperty, setActiveProperty] = useState(selectedProperty || null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [purposeFilter, setPurposeFilter] = useState("all");
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
-
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) =>
-        setUserLocation([pos.coords.latitude, pos.coords.longitude]),
-      () => console.warn("User denied location"),
-      { enableHighAccuracy: true }
-    );
-  }, []);
+  const [locationMessage, setLocationMessage] = useState("");
 
   useEffect(() => {
     if (selectedProperty) {
@@ -178,167 +164,112 @@ export default function PropertyMap({ properties = [], onBack }) {
     }
   }, [selectedProperty]);
 
-  const visibleProperties = useMemo(() => {
-    return properties.filter((property) => {
-      const searchableText = [
-        property.title,
-        property.location,
-        property.district,
-        property.property_type,
-        property.type,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch = searchableText.includes(searchTerm.toLowerCase());
-
-      const matchesPurpose =
-        purposeFilter === "all" || property.purpose === purposeFilter;
-
-      return matchesSearch && matchesPurpose && getPropertyPosition(property);
-    });
-  }, [properties, searchTerm, purposeFilter]);
+  const mappedProperties = useMemo(() => {
+    return properties.filter((property) => getPropertyPosition(property));
+  }, [properties]);
 
   const activePosition = getPropertyPosition(activeProperty);
-
-  const mapCenter =
-    activePosition ||
-    userLocation ||
-    getPropertyPosition(selectedProperty) ||
-    DEFAULT_CENTER;
-
-  const handleViewDetails = (property) => {
-    if (!property?.id) return;
-    navigate(`/property/${property.id}`);
-  };
+  const mapCenter = activePosition || userLocation || DEFAULT_CENTER;
 
   const handleUseMyLocation = () => {
-    if (!navigator.geolocation) return;
+    setLocationMessage("");
+
+    if (!navigator.geolocation) {
+      setLocationMessage("Location is not supported on this device.");
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(
-      (pos) =>
-        setUserLocation([pos.coords.latitude, pos.coords.longitude]),
-      () => alert("Unable to get your current location."),
+      (pos) => {
+        const current = [pos.coords.latitude, pos.coords.longitude];
+        setUserLocation(current);
+        setLocationMessage("Showing your current location.");
+      },
+      () => {
+        setLocationMessage("Unable to access your location.");
+      },
       { enableHighAccuracy: true }
     );
   };
 
-  const resetFilters = () => {
-    setSearchTerm("");
-    setPurposeFilter("all");
-    setShowMobileFilters(false);
+  const handleViewDetails = (property) => {
+    if (!property?.id && !property?._id) return;
+    navigate(`/property/${property.id || property._id}`);
+  };
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+
+    navigate(-1);
   };
 
   return (
     <div className="property-map-page">
-      <div className="property-map-topbar">
-        <div className="map-brand-area">
-          <button
-            type="button"
-            onClick={onBack || (() => navigate(-1))}
-            className="map-back-btn"
-          >
+      <section className="property-map-hero">
+        <div>
+          <p className="map-eyebrow">Property LS Map View</p>
+          <h1>Explore Properties Across Lesotho</h1>
+          <span>
+            View available listings by location. Click a pin or property card to
+            preview details.
+          </span>
+        </div>
+
+        <div className="map-actions">
+          <button type="button" className="map-secondary-btn" onClick={handleBack}>
             ← Back
           </button>
 
-          <div className="map-brand-text">
-            <h1>Property LS</h1>
-            <p>Map View</p>
-          </div>
-        </div>
-
-        <div className="map-search-area">
-          <input
-            type="text"
-            placeholder="Search by title, district, or location"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-
           <button
             type="button"
-            className="mobile-filter-btn"
-            onClick={() => setShowMobileFilters((prev) => !prev)}
+            className="map-primary-btn"
+            onClick={handleUseMyLocation}
           >
-            Filter ▼
+            📍 My Location
           </button>
         </div>
-      </div>
+      </section>
 
-      <div className="property-map-content">
-        <aside
-          className={`property-map-sidebar ${
-            showMobileFilters ? "show-mobile-filters" : ""
-          }`}
-        >
-          <div className="sidebar-card">
-            <div className="sidebar-header">
-              <div>
-                <h2>Explore on Map</h2>
-                <p>{visibleProperties.length} properties found</p>
-              </div>
+      {locationMessage && (
+        <div className="map-location-message">{locationMessage}</div>
+      )}
 
-              <button type="button" onClick={resetFilters}>
-                Reset
-              </button>
+      <section className="property-map-layout">
+        <aside className="property-map-panel">
+          <div className="map-panel-header">
+            <div>
+              <h2>Visible Listings</h2>
+              <p>{mappedProperties.length} properties on map</p>
             </div>
-
-            <div className="filter-group">
-              <label>Property Purpose</label>
-              <div className="purpose-toggle">
-                <button
-                  type="button"
-                  className={purposeFilter === "all" ? "active" : ""}
-                  onClick={() => setPurposeFilter("all")}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  className={purposeFilter === "rent" ? "active" : ""}
-                  onClick={() => setPurposeFilter("rent")}
-                >
-                  Rent
-                </button>
-                <button
-                  type="button"
-                  className={purposeFilter === "buy" ? "active" : ""}
-                  onClick={() => setPurposeFilter("buy")}
-                >
-                  Buy
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="my-location-btn"
-              onClick={handleUseMyLocation}
-            >
-              📍 Use My Location
-            </button>
           </div>
 
-          <div className="sidebar-results">
-            {visibleProperties.length === 0 ? (
-              <div className="empty-map-results">
-                <h3>No properties found</h3>
-                <p>Try changing your search or filters.</p>
+          <div className="map-results-list">
+            {mappedProperties.length === 0 ? (
+              <div className="map-empty-state">
+                <h3>No map listings found</h3>
+                <p>
+                  Listings need coordinates or a recognised district to appear on
+                  the map.
+                </p>
               </div>
             ) : (
-              visibleProperties.slice(0, 12).map((property) => {
-                const isActive = activeProperty?.id === property.id;
+              mappedProperties.slice(0, 14).map((property) => {
                 const image = getPropertyImage(property);
+                const isActive =
+                  String(activeProperty?.id || activeProperty?._id) ===
+                  String(property.id || property._id);
 
                 return (
                   <button
                     type="button"
-                    key={property.id}
-                    className={`map-result-card ${isActive ? "active" : ""}`}
+                    key={property.id || property._id}
+                    className={`map-property-card ${isActive ? "active" : ""}`}
                     onClick={() => setActiveProperty(property)}
                   >
-                    <div className="result-image">
+                    <div className="map-card-image">
                       {image ? (
                         <img src={image} alt={property.title || "Property"} />
                       ) : (
@@ -346,10 +277,8 @@ export default function PropertyMap({ properties = [], onBack }) {
                       )}
                     </div>
 
-                    <div className="result-details">
-                      <span className="result-purpose">
-                        {getPurposeLabel(property)}
-                      </span>
+                    <div className="map-card-info">
+                      <span>{getPurposeLabel(property)}</span>
                       <h3>{property.title || "Listed Property"}</h3>
                       <p>{property.location || property.district || "Lesotho"}</p>
                       <strong>{getDisplayPrice(property)}</strong>
@@ -362,18 +291,13 @@ export default function PropertyMap({ properties = [], onBack }) {
         </aside>
 
         <main className="property-map-holder">
-          <MapContainer
-            center={mapCenter}
-            zoom={12}
-            className="property-map"
-            zoomControl
-          >
+          <MapContainer center={mapCenter} zoom={12} className="property-map">
             <TileLayer
-              attribution='© OpenStreetMap contributors'
+              attribution="© OpenStreetMap contributors"
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            <RecenterMap position={activePosition || mapCenter} />
+            <RecenterMap position={mapCenter} />
 
             {userLocation && (
               <Marker position={userLocation} icon={createUserLocationIcon()}>
@@ -383,16 +307,16 @@ export default function PropertyMap({ properties = [], onBack }) {
               </Marker>
             )}
 
-            {visibleProperties.map((property) => {
+            {mappedProperties.map((property) => {
               const position = getPropertyPosition(property);
-              if (!position) return null;
-
-              const isActive = activeProperty?.id === property.id;
+              const isActive =
+                String(activeProperty?.id || activeProperty?._id) ===
+                String(property.id || property._id);
               const image = getPropertyImage(property);
 
               return (
                 <Marker
-                  key={property.id}
+                  key={property.id || property._id}
                   position={position}
                   icon={createPropertyIcon(property, isActive)}
                   eventHandlers={{
@@ -412,11 +336,7 @@ export default function PropertyMap({ properties = [], onBack }) {
                       <div className="popup-content">
                         <span>{getPurposeLabel(property)}</span>
                         <h3>{property.title || "Listed Property"}</h3>
-                        <p>
-                          {property.location ||
-                            property.district ||
-                            "Lesotho"}
-                        </p>
+                        <p>{property.location || property.district || "Lesotho"}</p>
                         <strong>{getDisplayPrice(property)}</strong>
 
                         <button
@@ -434,8 +354,8 @@ export default function PropertyMap({ properties = [], onBack }) {
           </MapContainer>
 
           {activeProperty && (
-            <div className="mobile-bottom-card">
-              <div className="mobile-card-image">
+            <div className="mobile-map-card">
+              <div className="mobile-map-image">
                 {getPropertyImage(activeProperty) ? (
                   <img
                     src={getPropertyImage(activeProperty)}
@@ -446,7 +366,7 @@ export default function PropertyMap({ properties = [], onBack }) {
                 )}
               </div>
 
-              <div className="mobile-card-info">
+              <div className="mobile-map-info">
                 <span>{getPurposeLabel(activeProperty)}</span>
                 <h3>{activeProperty.title || "Listed Property"}</h3>
                 <p>
@@ -466,7 +386,7 @@ export default function PropertyMap({ properties = [], onBack }) {
             </div>
           )}
         </main>
-      </div>
+      </section>
     </div>
   );
 }
