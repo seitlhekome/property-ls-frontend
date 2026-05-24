@@ -34,7 +34,6 @@ const DEFAULT_CENTER = [-29.3167, 27.4833];
 
 function formatMoney(value) {
   if (!value || Number(value) <= 0) return "Price not specified";
-
   return `M ${Number(value).toLocaleString("en-LS")}`;
 }
 
@@ -136,7 +135,6 @@ function createUserLocationIcon() {
   });
 }
 
-/* Recenter map on selected property */
 function RecenterMap({ position }) {
   const map = useMap();
 
@@ -235,7 +233,7 @@ export default function PropertyMap({ properties = [], onBack }) {
   return (
     <div className="property-map-page">
       <div className="property-map-topbar">
-        <div className="map-title-group">
+        <div className="map-brand-area">
           <button
             type="button"
             onClick={onBack || (() => navigate(-1))}
@@ -244,16 +242,16 @@ export default function PropertyMap({ properties = [], onBack }) {
             ← Back
           </button>
 
-          <div>
-            <h1>Explore Properties</h1>
-            <p>Find houses, rentals, land, and listed properties across Lesotho.</p>
+          <div className="map-brand-text">
+            <h1>Property LS</h1>
+            <p>Map View</p>
           </div>
         </div>
 
         <div className="map-search-area">
           <input
             type="text"
-            placeholder="Search by location, district, or property..."
+            placeholder="Search by title, district, or location"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -263,7 +261,7 @@ export default function PropertyMap({ properties = [], onBack }) {
             className="mobile-filter-btn"
             onClick={() => setShowMobileFilters((prev) => !prev)}
           >
-            Filters
+            Filter ▼
           </button>
         </div>
       </div>
@@ -277,7 +275,7 @@ export default function PropertyMap({ properties = [], onBack }) {
           <div className="sidebar-card">
             <div className="sidebar-header">
               <div>
-                <h2>Map Filters</h2>
+                <h2>Explore on Map</h2>
                 <p>{visibleProperties.length} properties found</p>
               </div>
 
@@ -308,7 +306,7 @@ export default function PropertyMap({ properties = [], onBack }) {
                   className={purposeFilter === "buy" ? "active" : ""}
                   onClick={() => setPurposeFilter("buy")}
                 >
-                  Sale
+                  Buy
                 </button>
               </div>
             </div>
@@ -378,10 +376,7 @@ export default function PropertyMap({ properties = [], onBack }) {
             <RecenterMap position={activePosition || mapCenter} />
 
             {userLocation && (
-              <Marker
-                position={userLocation}
-                icon={createUserLocationIcon()}
-              >
+              <Marker position={userLocation} icon={createUserLocationIcon()}>
                 <Popup>
                   <strong>You are here</strong>
                 </Popup>
@@ -408,10 +403,7 @@ export default function PropertyMap({ properties = [], onBack }) {
                     <div className="property-popup-card">
                       <div className="popup-image">
                         {image ? (
-                          <img
-                            src={image}
-                            alt={property.title || "Property"}
-                          />
+                          <img src={image} alt={property.title || "Property"} />
                         ) : (
                           <span>No Image</span>
                         )}
