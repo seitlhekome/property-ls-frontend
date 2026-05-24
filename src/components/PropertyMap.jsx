@@ -5,16 +5,13 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./PropertyMap.css";
 
-/* Fix default Leaflet icons */
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-/* District fallback coordinates */
 const DISTRICT_COORDS = {
   maseru: [-29.3167, 27.4833],
   leribe: [-28.8718, 28.0456],
@@ -51,11 +48,9 @@ function getPropertyImage(property) {
   if (typeof images === "string") {
     try {
       const parsed = JSON.parse(images);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const first = parsed[0];
-        if (typeof first === "string") return first;
-        if (first?.url) return first.url;
-      }
+      const first = parsed?.[0];
+      if (typeof first === "string") return first;
+      if (first?.url) return first.url;
     } catch {
       return images;
     }
@@ -65,10 +60,8 @@ function getPropertyImage(property) {
 }
 
 function getPropertyPosition(property) {
-  if (!property) return null;
-
-  const lat = property.lat ?? property.latitude;
-  const lng = property.lng ?? property.longitude;
+  const lat = property?.lat ?? property?.latitude;
+  const lng = property?.lng ?? property?.longitude;
 
   if (lat !== null && lat !== undefined && lng !== null && lng !== undefined) {
     const parsedLat = Number(lat);
@@ -79,7 +72,7 @@ function getPropertyPosition(property) {
     }
   }
 
-  if (property.district) {
+  if (property?.district) {
     return DISTRICT_COORDS[property.district.toLowerCase()] || null;
   }
 
@@ -114,11 +107,9 @@ function createPropertyIcon(property, isActive) {
 
   return L.divIcon({
     className: `property-map-marker ${purposeClass} ${isActive ? "active" : ""}`,
-    html: `
-      <div class="property-marker-dot">
-        <span>${property?.purpose === "rent" ? "R" : property?.purpose === "buy" ? "S" : "P"}</span>
-      </div>
-    `,
+    html: `<div class="property-marker-dot"><span>${
+      property?.purpose === "rent" ? "R" : property?.purpose === "buy" ? "S" : "P"
+    }</span></div>`,
     iconSize: [40, 40],
     iconAnchor: [20, 40],
     popupAnchor: [0, -38],
@@ -154,19 +145,43 @@ export default function PropertyMap({ properties = [], onBack }) {
   const navigate = useNavigate();
   const { selectedProperty } = location.state || {};
 
-  const [userLocation, setUserLocation] = useState(null);
   const [activeProperty, setActiveProperty] = useState(selectedProperty || null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [purposeFilter, setPurposeFilter] = useState("all");
   const [locationMessage, setLocationMessage] = useState("");
 
   useEffect(() => {
-    if (selectedProperty) {
-      setActiveProperty(selectedProperty);
-    }
+    if (selectedProperty) setActiveProperty(selectedProperty);
   }, [selectedProperty]);
 
   const mappedProperties = useMemo(() => {
-    return properties.filter((property) => getPropertyPosition(property));
-  }, [properties]);
+    const q = searchTerm.trim().toLowerCase();
+
+    return properties.filter((property) => {
+      const hasPosition = getPropertyPosition(property);
+      if (!hasPosition) return false;
+
+      const matchesPurpose =
+        purposeFilter === "all" || property.purpose === purposeFilter;
+
+      const matchesSearch =
+        !q ||
+        [
+          property.title,
+          property.location,
+          property.district,
+          property.type,
+          property.description,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(q);
+
+      return matchesPurpose && matchesSearch;
+    });
+  }, [properties, searchTerm, purposeFilter]);
 
   const activePosition = getPropertyPosition(activeProperty);
   const mapCenter = activePosition || userLocation || DEFAULT_CENTER;
@@ -181,79 +196,90 @@ export default function PropertyMap({ properties = [], onBack }) {
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const current = [pos.coords.latitude, pos.coords.longitude];
-        setUserLocation(current);
+        setUserLocation([pos.coords.latitude, pos.coords.longitude]);
         setLocationMessage("Showing your current location.");
       },
-      () => {
-        setLocationMessage("Unable to access your location.");
-      },
+      () => setLocationMessage("Unable to access your location."),
       { enableHighAccuracy: true }
     );
   };
 
   const handleViewDetails = (property) => {
-    if (!property?.id && !property?._id) return;
-    navigate(`/property/${property.id || property._id}`);
+    const id = property?.id || property?._id;
+    if (id) navigate(`/property/${id}`);
   };
 
   const handleBack = () => {
-    if (onBack) {
-      onBack();
-      return;
-    }
-
-    navigate(-1);
+    if (onBack) onBack();
+    else navigate(-1);
   };
 
   return (
     <div className="property-map-page">
-      <section className="property-map-hero">
-        <div>
-          <p className="map-eyebrow">Property LS Map View</p>
-          <h1>Explore Properties Across Lesotho</h1>
-          <span>
-            View available listings by location. Click a pin or property card to
-            preview details.
-          </span>
-        </div>
-
-        <div className="map-actions">
-          <button type="button" className="map-secondary-btn" onClick={handleBack}>
+      <section className="property-map-toolbar">
+        <div className="map-toolbar-left">
+          <button type="button" className="map-back-btn" onClick={handleBack}>
             ← Back
           </button>
 
-          <button
-            type="button"
-            className="map-primary-btn"
-            onClick={handleUseMyLocation}
-          >
+          <div>
+            <h1>Explore Properties</h1>
+            <p>{mappedProperties.length} listings shown on the map</p>
+          </div>
+        </div>
+
+        <div className="map-toolbar-controls">
+          <input
+            type="text"
+            placeholder="Search location, district, or property..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+
+          <div className="map-purpose-buttons">
+            <button
+              type="button"
+              className={purposeFilter === "all" ? "active" : ""}
+              onClick={() => setPurposeFilter("all")}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              className={purposeFilter === "rent" ? "active" : ""}
+              onClick={() => setPurposeFilter("rent")}
+            >
+              Rent
+            </button>
+            <button
+              type="button"
+              className={purposeFilter === "buy" ? "active" : ""}
+              onClick={() => setPurposeFilter("buy")}
+            >
+              Sale
+            </button>
+          </div>
+
+          <button type="button" className="map-location-btn" onClick={handleUseMyLocation}>
             📍 My Location
           </button>
         </div>
       </section>
 
-      {locationMessage && (
-        <div className="map-location-message">{locationMessage}</div>
-      )}
+      {locationMessage && <div className="map-location-message">{locationMessage}</div>}
 
       <section className="property-map-layout">
         <aside className="property-map-panel">
           <div className="map-panel-header">
-            <div>
-              <h2>Visible Listings</h2>
-              <p>{mappedProperties.length} properties on map</p>
-            </div>
+            <h2>Listings</h2>
+            <p>Select a property to focus on the map.</p>
           </div>
 
           <div className="map-results-list">
             {mappedProperties.length === 0 ? (
               <div className="map-empty-state">
-                <h3>No map listings found</h3>
-                <p>
-                  Listings need coordinates or a recognised district to appear on
-                  the map.
-                </p>
+                <h3>No properties found</h3>
+                <p>Try searching another location or changing Rent/Sale.</p>
               </div>
             ) : (
               mappedProperties.slice(0, 14).map((property) => {
@@ -270,11 +296,7 @@ export default function PropertyMap({ properties = [], onBack }) {
                     onClick={() => setActiveProperty(property)}
                   >
                     <div className="map-card-image">
-                      {image ? (
-                        <img src={image} alt={property.title || "Property"} />
-                      ) : (
-                        <span>No Image</span>
-                      )}
+                      {image ? <img src={image} alt={property.title || "Property"} /> : <span>No Image</span>}
                     </div>
 
                     <div className="map-card-info">
@@ -309,28 +331,22 @@ export default function PropertyMap({ properties = [], onBack }) {
 
             {mappedProperties.map((property) => {
               const position = getPropertyPosition(property);
+              const image = getPropertyImage(property);
               const isActive =
                 String(activeProperty?.id || activeProperty?._id) ===
                 String(property.id || property._id);
-              const image = getPropertyImage(property);
 
               return (
                 <Marker
                   key={property.id || property._id}
                   position={position}
                   icon={createPropertyIcon(property, isActive)}
-                  eventHandlers={{
-                    click: () => setActiveProperty(property),
-                  }}
+                  eventHandlers={{ click: () => setActiveProperty(property) }}
                 >
                   <Popup>
                     <div className="property-popup-card">
                       <div className="popup-image">
-                        {image ? (
-                          <img src={image} alt={property.title || "Property"} />
-                        ) : (
-                          <span>No Image</span>
-                        )}
+                        {image ? <img src={image} alt={property.title || "Property"} /> : <span>No Image</span>}
                       </div>
 
                       <div className="popup-content">
@@ -339,10 +355,7 @@ export default function PropertyMap({ properties = [], onBack }) {
                         <p>{property.location || property.district || "Lesotho"}</p>
                         <strong>{getDisplayPrice(property)}</strong>
 
-                        <button
-                          type="button"
-                          onClick={() => handleViewDetails(property)}
-                        >
+                        <button type="button" onClick={() => handleViewDetails(property)}>
                           View Details
                         </button>
                       </div>
@@ -357,10 +370,7 @@ export default function PropertyMap({ properties = [], onBack }) {
             <div className="mobile-map-card">
               <div className="mobile-map-image">
                 {getPropertyImage(activeProperty) ? (
-                  <img
-                    src={getPropertyImage(activeProperty)}
-                    alt={activeProperty.title || "Property"}
-                  />
+                  <img src={getPropertyImage(activeProperty)} alt={activeProperty.title || "Property"} />
                 ) : (
                   <span>No Image</span>
                 )}
@@ -369,18 +379,11 @@ export default function PropertyMap({ properties = [], onBack }) {
               <div className="mobile-map-info">
                 <span>{getPurposeLabel(activeProperty)}</span>
                 <h3>{activeProperty.title || "Listed Property"}</h3>
-                <p>
-                  {activeProperty.location ||
-                    activeProperty.district ||
-                    "Lesotho"}
-                </p>
+                <p>{activeProperty.location || activeProperty.district || "Lesotho"}</p>
                 <strong>{getDisplayPrice(activeProperty)}</strong>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleViewDetails(activeProperty)}
-              >
+              <button type="button" onClick={() => handleViewDetails(activeProperty)}>
                 View
               </button>
             </div>
