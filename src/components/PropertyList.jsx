@@ -24,8 +24,14 @@ export default function PropertyList({
     `);
 
   const SkeletonCard = () => (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden animate-pulse">
-      <div className="w-full h-48 bg-gray-200"></div>
+    <div
+      className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+      style={{
+        animation: "propertyListSkeletonFade 1.4s ease-in-out infinite",
+      }}
+    >
+      <div className="relative w-full h-48 overflow-hidden bg-gray-200"></div>
+
       <div className="p-4 space-y-3">
         <div className="h-5 bg-gray-200 rounded w-1/2"></div>
         <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -47,11 +53,27 @@ export default function PropertyList({
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto p-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <SkeletonCard key={i} />
-        ))}
-      </div>
+      <>
+        <style>
+          {`
+            @keyframes propertyListSkeletonFade {
+              0%, 100% {
+                opacity: 1;
+              }
+
+              50% {
+                opacity: 0.55;
+              }
+            }
+          `}
+        </style>
+
+        <div className="max-w-7xl mx-auto p-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      </>
     );
   }
 
@@ -113,18 +135,19 @@ export default function PropertyList({
         return (
           <div
             key={id}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden"
+            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden min-h-0"
             onClick={() =>
               navigate(`/property/${id}`, {
                 state: { selectedProperty: p },
               })
             }
           >
-            <div className="relative">
+            <div className="relative w-full h-48 overflow-hidden bg-gray-100">
               <img
                 src={image}
                 alt={p.title || "Property"}
-                className="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
+                className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                loading="lazy"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = fallbackImage;
