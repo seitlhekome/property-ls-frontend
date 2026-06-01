@@ -647,3 +647,58 @@
     cursor: pointer;
   }
 }
+
+.property-price-marker {
+  background: transparent;
+  border: none;
+}
+
+.property-price-pill {
+  min-width: 68px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.property-price-marker.rent .property-price-pill {
+  background: #16a34a;
+}
+
+.property-price-marker.sale .property-price-pill {
+  background: #2563eb;
+}
+
+.property-price-marker.default .property-price-pill {
+  background: #7c3aed;
+}
+
+.property-price-marker.active .property-price-pill {
+  background: #dc2626;
+  transform: scale(1.08);
+}
+
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+  background: rgba(37, 99, 235, 0.18) !important;
+}
+
+.marker-cluster-small div,
+.marker-cluster-medium div,
+.marker-cluster-large div {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  font-weight: 900 !important;
+  border: 2px solid #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.25);
+}

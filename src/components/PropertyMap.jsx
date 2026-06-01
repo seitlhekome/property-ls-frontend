@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "./PropertyMap.css";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
@@ -32,6 +36,30 @@ const DEFAULT_CENTER = [-29.3167, 27.4833];
 function formatMoney(value) {
   if (!value || Number(value) <= 0) return "Price not specified";
   return `M ${Number(value).toLocaleString("en-LS")}`;
+}
+
+function formatMarkerPrice(property) {
+  const rawValue =
+    property?.purpose === "rent"
+      ? property?.rent_price || property?.price
+      : property?.price || property?.rent_price;
+
+  const value = Number(rawValue);
+
+  if (!value || Number.isNaN(value)) {
+    return property?.purpose === "rent" ? "Rent" : "Sale";
+  }
+
+  if (value >= 1000000) {
+    const millions = value / 1000000;
+    return `M${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}m`;
+  }
+
+  if (value >= 1000) {
+    return `M${Math.round(value / 1000)}k`;
+  }
+
+  return `M${value}`;
 }
 
 function getPropertyImage(property) {
@@ -106,13 +134,13 @@ function createPropertyIcon(property, isActive) {
       : "default";
 
   return L.divIcon({
-    className: `property-map-marker ${purposeClass} ${isActive ? "active" : ""}`,
-    html: `<div class="property-marker-dot"><span>${
-      property?.purpose === "rent" ? "R" : property?.purpose === "buy" ? "S" : "P"
-    }</span></div>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
-    popupAnchor: [0, -38],
+    className: `property-price-marker ${purposeClass} ${
+      isActive ? "active" : ""
+    }`,
+    html: `<div class="property-price-pill">${formatMarkerPrice(property)}</div>`,
+    iconSize: [76, 34],
+    iconAnchor: [38, 34],
+    popupAnchor: [0, -30],
   });
 }
 
@@ -339,48 +367,57 @@ export default function PropertyMap({ properties = [], onBack }) {
               </Marker>
             )}
 
-            {mappedProperties.map((property) => {
-              const position = getPropertyPosition(property);
-              const image = getPropertyImage(property);
-              const isActive =
-                String(activeProperty?.id || activeProperty?._id) ===
-                String(property.id || property._id);
+            <MarkerClusterGroup
+              chunkedLoading
+              spiderfyOnMaxZoom
+              showCoverageOnHover={false}
+              maxClusterRadius={45}
+            >
+              {mappedProperties.map((property) => {
+                const position = getPropertyPosition(property);
+                const image = getPropertyImage(property);
+                const isActive =
+                  String(activeProperty?.id || activeProperty?._id) ===
+                  String(property.id || property._id);
 
-              return (
-                <Marker
-                  key={property.id || property._id}
-                  position={position}
-                  icon={createPropertyIcon(property, isActive)}
-                  eventHandlers={{ click: () => setActiveProperty(property) }}
-                >
-                  <Popup>
-                    <div className="property-popup-card">
-                      <div className="popup-image">
-                        {image ? (
-                          <img src={image} alt={property.title || "Property"} />
-                        ) : (
-                          <span>No Image</span>
-                        )}
+                return (
+                  <Marker
+                    key={property.id || property._id}
+                    position={position}
+                    icon={createPropertyIcon(property, isActive)}
+                    eventHandlers={{ click: () => setActiveProperty(property) }}
+                  >
+                    <Popup>
+                      <div className="property-popup-card">
+                        <div className="popup-image">
+                          {image ? (
+                            <img src={image} alt={property.title || "Property"} />
+                          ) : (
+                            <span>No Image</span>
+                          )}
+                        </div>
+
+                        <div className="popup-content">
+                          <span>{getPurposeLabel(property)}</span>
+                          <h3>{property.title || "Listed Property"}</h3>
+                          <p>
+                            {property.location || property.district || "Lesotho"}
+                          </p>
+                          <strong>{getDisplayPrice(property)}</strong>
+
+                          <button
+                            type="button"
+                            onClick={() => handleViewDetails(property)}
+                          >
+                            View Details
+                          </button>
+                        </div>
                       </div>
-
-                      <div className="popup-content">
-                        <span>{getPurposeLabel(property)}</span>
-                        <h3>{property.title || "Listed Property"}</h3>
-                        <p>{property.location || property.district || "Lesotho"}</p>
-                        <strong>{getDisplayPrice(property)}</strong>
-
-                        <button
-                          type="button"
-                          onClick={() => handleViewDetails(property)}
-                        >
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </MarkerClusterGroup>
           </MapContainer>
 
           {activeProperty && (
