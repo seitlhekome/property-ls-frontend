@@ -224,7 +224,7 @@ export default function PropertyMap({ properties = [], onBack }) {
 
           <div>
             <h1>Explore Properties</h1>
-            <p>{mappedProperties.length} listings shown on the map</p>
+            <p>🏠 {mappedProperties.length} properties available</p>
           </div>
         </div>
 
@@ -260,13 +260,19 @@ export default function PropertyMap({ properties = [], onBack }) {
             </button>
           </div>
 
-          <button type="button" className="map-location-btn" onClick={handleUseMyLocation}>
+          <button
+            type="button"
+            className="map-location-btn"
+            onClick={handleUseMyLocation}
+          >
             📍 My Location
           </button>
         </div>
       </section>
 
-      {locationMessage && <div className="map-location-message">{locationMessage}</div>}
+      {locationMessage && (
+        <div className="map-location-message">{locationMessage}</div>
+      )}
 
       <section className="property-map-layout">
         <aside className="property-map-panel">
@@ -296,7 +302,11 @@ export default function PropertyMap({ properties = [], onBack }) {
                     onClick={() => setActiveProperty(property)}
                   >
                     <div className="map-card-image">
-                      {image ? <img src={image} alt={property.title || "Property"} /> : <span>No Image</span>}
+                      {image ? (
+                        <img src={image} alt={property.title || "Property"} />
+                      ) : (
+                        <span>No Image</span>
+                      )}
                     </div>
 
                     <div className="map-card-info">
@@ -346,7 +356,11 @@ export default function PropertyMap({ properties = [], onBack }) {
                   <Popup>
                     <div className="property-popup-card">
                       <div className="popup-image">
-                        {image ? <img src={image} alt={property.title || "Property"} /> : <span>No Image</span>}
+                        {image ? (
+                          <img src={image} alt={property.title || "Property"} />
+                        ) : (
+                          <span>No Image</span>
+                        )}
                       </div>
 
                       <div className="popup-content">
@@ -355,7 +369,10 @@ export default function PropertyMap({ properties = [], onBack }) {
                         <p>{property.location || property.district || "Lesotho"}</p>
                         <strong>{getDisplayPrice(property)}</strong>
 
-                        <button type="button" onClick={() => handleViewDetails(property)}>
+                        <button
+                          type="button"
+                          onClick={() => handleViewDetails(property)}
+                        >
                           View Details
                         </button>
                       </div>
@@ -370,7 +387,10 @@ export default function PropertyMap({ properties = [], onBack }) {
             <div className="mobile-map-card">
               <div className="mobile-map-image">
                 {getPropertyImage(activeProperty) ? (
-                  <img src={getPropertyImage(activeProperty)} alt={activeProperty.title || "Property"} />
+                  <img
+                    src={getPropertyImage(activeProperty)}
+                    alt={activeProperty.title || "Property"}
+                  />
                 ) : (
                   <span>No Image</span>
                 )}
@@ -379,7 +399,11 @@ export default function PropertyMap({ properties = [], onBack }) {
               <div className="mobile-map-info">
                 <span>{getPurposeLabel(activeProperty)}</span>
                 <h3>{activeProperty.title || "Listed Property"}</h3>
-                <p>{activeProperty.location || activeProperty.district || "Lesotho"}</p>
+                <p>
+                  {activeProperty.location ||
+                    activeProperty.district ||
+                    "Lesotho"}
+                </p>
                 <strong>{getDisplayPrice(activeProperty)}</strong>
               </div>
 

@@ -54,13 +54,15 @@
 }
 
 .map-back-btn {
-  padding: 0 14px;
-  background: #e2e8f0;
-  color: #0f172a;
+  padding: 0 16px;
+  background: #ffffff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
 }
 
 .map-back-btn:hover {
-  background: #cbd5e1;
+  background: #eff6ff;
+  border-color: #93c5fd;
 }
 
 .map-toolbar-controls {
@@ -111,13 +113,23 @@
 }
 
 .map-location-btn {
-  padding: 0 14px;
-  background: #0f172a;
+  padding: 0 16px;
+  background: #2563eb;
   color: #ffffff;
+  border: none;
+  min-height: 40px;
+  border-radius: 999px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
 .map-location-btn:hover {
-  background: #1e293b;
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.map-location-btn:active {
+  transform: translateY(0);
 }
 
 .map-location-message {
@@ -200,7 +212,8 @@
 .map-property-card.active {
   background: #eff6ff;
   border-color: #2563eb;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.15);
 }
 
 .map-card-image {
@@ -348,10 +361,10 @@
 
 .property-map-marker.active .property-marker-dot {
   background: #dc2626;
-  animation: pulse 1s infinite;
+  animation: propertyMapMarkerPulse 1s infinite;
 }
 
-@keyframes pulse {
+@keyframes propertyMapMarkerPulse {
   0% {
     transform: rotate(-45deg) scale(1);
   }
