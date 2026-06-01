@@ -77,13 +77,41 @@ export default function PropertyList({
     );
   }
 
-  if (!loading && properties.length === 0) {
-    return (
-      <div className="max-w-7xl mx-auto p-6 text-center text-gray-500">
-        No properties available.
+  if (loading) {
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-16">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-blue-100 bg-white px-8 py-12 shadow-sm">
+        <div
+          className="h-10 w-10 rounded-full border-4 border-blue-100 border-t-blue-600"
+          style={{
+            animation: "propertySpinner 1s linear infinite",
+          }}
+        />
+
+        <h3 className="mt-4 text-lg font-semibold text-gray-800">
+          Loading properties...
+        </h3>
+
+        <p className="mt-2 text-sm text-gray-500 text-center">
+          Please wait while we fetch the latest property listings.
+        </p>
       </div>
-    );
-  }
+
+      <style>
+        {`
+          @keyframes propertySpinner {
+            from {
+              transform: rotate(0deg);
+            }
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}
+      </style>
+    </div>
+  );
+}
 
   const getImageUrl = (property) => {
     if (!Array.isArray(property.images) || property.images.length === 0) {
