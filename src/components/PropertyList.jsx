@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function PropertyList({
@@ -11,6 +11,32 @@ export default function PropertyList({
   loading,
 }) {
   const navigate = useNavigate();
+
+  const propertiesPerPage = 12;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [properties]);
+
+  const totalPages = Math.ceil(properties.length / propertiesPerPage);
+
+  const indexOfLastProperty = currentPage * propertiesPerPage;
+  const indexOfFirstProperty = indexOfLastProperty - propertiesPerPage;
+
+  const currentProperties = properties.slice(
+    indexOfFirstProperty,
+    indexOfLastProperty
+  );
+
+  const goToPage = (page) => {
+    setCurrentPage(page);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   const fallbackImage =
     "data:image/svg+xml;charset=UTF-8," +
@@ -77,42 +103,6 @@ export default function PropertyList({
     );
   }
 
-  if (loading) {
-  return (
-    <div className="max-w-7xl mx-auto px-4 py-16">
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-blue-100 bg-white px-8 py-12 shadow-sm">
-        <div
-          className="h-10 w-10 rounded-full border-4 border-blue-100 border-t-blue-600"
-          style={{
-            animation: "propertySpinner 1s linear infinite",
-          }}
-        />
-
-        <h3 className="mt-4 text-lg font-semibold text-gray-800">
-          Loading properties...
-        </h3>
-
-        <p className="mt-2 text-sm text-gray-500 text-center">
-          Please wait while we fetch the latest property listings.
-        </p>
-      </div>
-
-      <style>
-        {`
-          @keyframes propertySpinner {
-            from {
-              transform: rotate(0deg);
-            }
-            to {
-              transform: rotate(360deg);
-            }
-          }
-        `}
-      </style>
-    </div>
-  );
-}
-
   const getImageUrl = (property) => {
     if (!Array.isArray(property.images) || property.images.length === 0) {
       return fallbackImage;
@@ -151,105 +141,169 @@ export default function PropertyList({
     return parsed.toLocaleDateString();
   };
 
+  if (!loading && properties.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-16">
+        <div className="rounded-2xl border border-gray-200 bg-white px-8 py-12 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-800">
+            No properties found
+          </h3>
+          <p className="mt-2 text-sm text-gray-500">
+            Try changing your search or filters.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-7xl mx-auto p-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {properties.map((p) => {
-        const id = getPropertyId(p);
-        const image = getImageUrl(p);
-        const isSaved = favorites.some((fav) => String(fav) === String(id));
-        const isLoggedIn = !!currentUser;
-        const postedDate = getPostedDate(p);
+    <div className="max-w-7xl mx-auto p-4">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-gray-600">
+          Showing {indexOfFirstProperty + 1}-
+          {Math.min(indexOfLastProperty, properties.length)} of{" "}
+          {properties.length} properties
+        </p>
 
-        return (
-          <div
-            key={id}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden min-h-0"
-            onClick={() =>
-              navigate(`/property/${id}`, {
-                state: { selectedProperty: p },
-              })
-            }
-          >
-            <div className="relative w-full h-48 overflow-hidden bg-gray-100">
-              <img
-                src={image}
-                alt={p.title || "Property"}
-                className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-                loading="lazy"
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = fallbackImage;
-                }}
-              />
-            </div>
+        {totalPages > 1 && (
+          <p className="text-sm text-gray-500">
+            Page {currentPage} of {totalPages}
+          </p>
+        )}
+      </div>
 
-            <div className="p-4 flex flex-col flex-1">
-              <div className="text-blue-600 font-semibold text-lg">
-                {p.purpose === "buy" && Number(p.price) > 0 && fmt(p.price)}
-                {p.purpose === "rent" && Number(p.rent_price) > 0 && (
-                  <>
-                    {fmt(p.rent_price)}
-                    <span className="text-sm text-gray-500"> / month</span>
-                  </>
-                )}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {currentProperties.map((p) => {
+          const id = getPropertyId(p);
+          const image = getImageUrl(p);
+          const isSaved = favorites.some((fav) => String(fav) === String(id));
+          const isLoggedIn = !!currentUser;
+          const postedDate = getPostedDate(p);
+
+          return (
+            <div
+              key={id}
+              className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col overflow-hidden min-h-0"
+              onClick={() =>
+                navigate(`/property/${id}`, {
+                  state: { selectedProperty: p },
+                })
+              }
+            >
+              <div className="relative w-full h-48 overflow-hidden bg-gray-100">
+                <img
+                  src={image}
+                  alt={p.title || "Property"}
+                  className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = fallbackImage;
+                  }}
+                />
               </div>
 
-              <h3 className="text-base font-semibold text-gray-900 mt-1">
-                {p.title || "Untitled Property"}
-              </h3>
+              <div className="p-4 flex flex-col flex-1">
+                <div className="text-blue-600 font-semibold text-lg">
+                  {p.purpose === "buy" && Number(p.price) > 0 && fmt(p.price)}
+                  {p.purpose === "rent" && Number(p.rent_price) > 0 && (
+                    <>
+                      {fmt(p.rent_price)}
+                      <span className="text-sm text-gray-500"> / month</span>
+                    </>
+                  )}
+                </div>
 
-              <p className="text-sm text-gray-500">
-                {p.location || "Unknown location"}, {p.district || "Lesotho"}
-              </p>
+                <h3 className="text-base font-semibold text-gray-900 mt-1">
+                  {p.title || "Untitled Property"}
+                </h3>
 
-              <div className="flex gap-4 text-xs text-gray-600 mt-2">
-                <span>🛏 {p.bedrooms ?? "-"}</span>
-                <span>🛁 {p.bathrooms ?? "-"}</span>
-                <span>📐 {p.size ?? "-"} m²</span>
-              </div>
-
-              {postedDate && (
-                <p className="text-xs text-gray-400 mt-2">
-                  Posted on {postedDate}
+                <p className="text-sm text-gray-500">
+                  {p.location || "Unknown location"},{" "}
+                  {p.district || "Lesotho"}
                 </p>
-              )}
 
-              <div className="mt-auto flex justify-between items-center gap-2 pt-4">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFav(id);
-                  }}
-                  className={`text-sm font-medium transition ${
-                    !isLoggedIn
-                      ? "text-gray-400"
-                      : isSaved
-                      ? "text-red-600"
-                      : "text-gray-600 hover:text-red-500"
-                  }`}
-                >
-                  {isSaved ? "Saved ❤️" : "Save 🤍"}
-                </button>
+                <div className="flex gap-4 text-xs text-gray-600 mt-2">
+                  <span>🛏 {p.bedrooms ?? "-"}</span>
+                  <span>🛁 {p.bathrooms ?? "-"}</span>
+                  <span>📐 {p.size ?? "-"} m²</span>
+                </div>
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate("/map", {
-                      state: {
-                        selectedProperty: p,
-                        coords: getLatLng(p),
-                      },
-                    });
-                  }}
-                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                >
-                  View on Map
-                </button>
+                {postedDate && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    Posted on {postedDate}
+                  </p>
+                )}
+
+                <div className="mt-auto flex justify-between items-center gap-2 pt-4">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFav(id);
+                    }}
+                    className={`text-sm font-medium transition ${
+                      !isLoggedIn
+                        ? "text-gray-400"
+                        : isSaved
+                        ? "text-red-600"
+                        : "text-gray-600 hover:text-red-500"
+                    }`}
+                  >
+                    {isSaved ? "Saved ❤️" : "Save 🤍"}
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate("/map", {
+                        state: {
+                          selectedProperty: p,
+                          coords: getLatLng(p),
+                        },
+                      });
+                    }}
+                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  >
+                    View on Map
+                  </button>
+                </div>
               </div>
             </div>
+          );
+        })}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="mt-10 mb-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => goToPage(currentPage - 1)}
+            className={`w-full rounded-lg px-5 py-2.5 text-sm font-medium transition sm:w-auto ${
+              currentPage === 1
+                ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            Previous
+          </button>
+
+          <div className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600">
+            Page {currentPage} of {totalPages}
           </div>
-        );
-      })}
+
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() => goToPage(currentPage + 1)}
+            className={`w-full rounded-lg px-5 py-2.5 text-sm font-medium transition sm:w-auto ${
+              currentPage === totalPages
+                ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
+          >
+            Next Listings
+          </button>
+        </div>
+      )}
     </div>
   );
 }
