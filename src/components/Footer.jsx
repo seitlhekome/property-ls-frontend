@@ -28,7 +28,7 @@ export default function Footer() {
         {/* Contact Info */}
         <div className="flex-1">
           <h3 className="font-semibold mb-2">Contact</h3>
-          <p className="text-sm">Email: info@propertyls.com</p>
+     
           <p className="text-sm">Phone: +266 57194234</p>
           <p className="text-sm">Address: Maseru 100, Lesotho</p>
         </div>

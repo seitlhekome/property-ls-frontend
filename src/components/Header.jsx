@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Header({
@@ -17,7 +17,38 @@ export default function Header({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [showFilters, setShowFilters] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+
+    window.addEventListener("appinstalled", () => {
+      setInstallPrompt(null);
+    });
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!installPrompt) return;
+
+    installPrompt.prompt();
+
+    const choiceResult = await installPrompt.userChoice;
+
+    if (choiceResult.outcome === "accepted") {
+      setInstallPrompt(null);
+    }
+  };
 
   const currentRole = (
     currentUser?.role ||
@@ -330,6 +361,12 @@ export default function Header({
             >
               Map
             </button>
+
+            {installPrompt && (
+              <button onClick={handleInstallApp} className={primaryButtonClass}>
+                📱 Install App
+              </button>
+            )}
 
             {currentUser ? (
               <>
