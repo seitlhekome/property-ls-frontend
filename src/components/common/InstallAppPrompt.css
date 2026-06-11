@@ -1,93 +1,67 @@
 .install-prompt-overlay {
   position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(15, 23, 42, 0.55);
+  bottom: 20px;
+  left: 15px;
+  right: 15px;
+  z-index: 9999;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 18px;
+  pointer-events: none;
 }
 
 .install-prompt-card {
   position: relative;
   width: 100%;
-  max-width: 360px;
-  background: #ffffff;
-  border-radius: 22px;
-  padding: 26px 22px 22px;
-  text-align: center;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
-  animation: installPop 0.25s ease;
+  max-width: 420px;
+  background: white;
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.15);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  pointer-events: auto;
 }
 
 .install-prompt-logo {
-  width: 82px;
-  height: 82px;
-  object-fit: contain;
-  margin-bottom: 12px;
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
 }
 
 .install-prompt-card h2 {
-  margin: 0 0 8px;
-  font-size: 22px;
-  font-weight: 800;
+  margin: 0;
+  font-size: 16px;
   color: #0f172a;
 }
 
 .install-prompt-card p {
-  margin: 0 0 20px;
-  font-size: 15px;
-  line-height: 1.5;
-  color: #475569;
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: #64748b;
 }
 
 .install-prompt-button {
-  width: 100%;
-  border: none;
-  border-radius: 14px;
-  padding: 14px 16px;
   background: #0f4c81;
-  color: #ffffff;
-  font-size: 16px;
-  font-weight: 700;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
   cursor: pointer;
+  font-weight: 600;
 }
 
 .install-prompt-later {
-  width: 100%;
-  margin-top: 10px;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
+  display: none;
 }
 
 .install-prompt-close {
   position: absolute;
-  top: 12px;
-  right: 14px;
+  top: 8px;
+  right: 10px;
   border: none;
-  background: #f1f5f9;
-  color: #334155;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  font-size: 22px;
-  line-height: 1;
+  background: transparent;
+  color: #64748b;
+  font-size: 20px;
   cursor: pointer;
-}
-
-@keyframes installPop {
-  from {
-    transform: scale(0.94);
-    opacity: 0;
-  }
-
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
 }
