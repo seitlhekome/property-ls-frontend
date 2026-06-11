@@ -13,7 +13,7 @@ import CalculatorModal from "./components/CalculatorModal";
 import Footer from "./components/Footer";
 import PropertyMap from "./components/PropertyMap";
 import SavedProperties from "./components/SavedProperties";
-import InstallAppPrompt from "./components/common/InstallAppPrompt";
+
 
 import { API_URL } from "./config";
 
@@ -621,9 +621,6 @@ export default function App() {
 
   return (
   <div className="min-h-screen bg-gray-50">
-
-    <InstallAppPrompt />
-
       <Header
         currentUser={currentUser}
         setShowCalculator={setShowCalculator}
