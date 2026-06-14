@@ -55,9 +55,7 @@ function formatMarkerPrice(property) {
     return `M${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}m`;
   }
 
-  if (value >= 1000) {
-    return `M${Math.round(value / 1000)}k`;
-  }
+  if (value >= 1000) return `M${Math.round(value / 1000)}k`;
 
   return `M${value}`;
 }
@@ -168,6 +166,20 @@ function RecenterMap({ position }) {
   return null;
 }
 
+function ResizeMapOnDrawerChange({ drawerOpen }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [drawerOpen, map]);
+
+  return null;
+}
+
 export default function PropertyMap({ properties = [], onBack }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -178,6 +190,7 @@ export default function PropertyMap({ properties = [], onBack }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [purposeFilter, setPurposeFilter] = useState("all");
   const [locationMessage, setLocationMessage] = useState("");
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   useEffect(() => {
     if (selectedProperty) setActiveProperty(selectedProperty);
@@ -214,6 +227,11 @@ export default function PropertyMap({ properties = [], onBack }) {
   const activePosition = getPropertyPosition(activeProperty);
   const mapCenter = activePosition || userLocation || DEFAULT_CENTER;
 
+  const focusProperty = (property) => {
+    setActiveProperty(property);
+    setMobileDrawerOpen(false);
+  };
+
   const handleUseMyLocation = () => {
     setLocationMessage("");
 
@@ -222,13 +240,31 @@ export default function PropertyMap({ properties = [], onBack }) {
       return;
     }
 
+    setLocationMessage("Finding your location...");
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setUserLocation([pos.coords.latitude, pos.coords.longitude]);
         setLocationMessage("Showing your current location.");
       },
-      () => setLocationMessage("Unable to access your location."),
-      { enableHighAccuracy: true }
+      (error) => {
+        console.error("Geolocation error:", error);
+
+        if (error.code === 1) {
+          setLocationMessage("Please allow location permission in your browser.");
+        } else if (error.code === 2) {
+          setLocationMessage("Your location is currently unavailable.");
+        } else if (error.code === 3) {
+          setLocationMessage("Location request timed out. Try again.");
+        } else {
+          setLocationMessage("Unable to access your location.");
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
     );
   };
 
@@ -240,6 +276,39 @@ export default function PropertyMap({ properties = [], onBack }) {
   const handleBack = () => {
     if (onBack) onBack();
     else navigate(-1);
+  };
+
+  const renderPropertyCard = (property, mode = "desktop") => {
+    const image = getPropertyImage(property);
+    const isActive =
+      String(activeProperty?.id || activeProperty?._id) ===
+      String(property.id || property._id);
+
+    return (
+      <button
+        type="button"
+        key={property.id || property._id}
+        className={`map-property-card ${isActive ? "active" : ""} ${
+          mode === "mobile" ? "mobile-drawer-property-card" : ""
+        }`}
+        onClick={() => focusProperty(property)}
+      >
+        <div className="map-card-image">
+          {image ? (
+            <img src={image} alt={property.title || "Property"} />
+          ) : (
+            <span>No Image</span>
+          )}
+        </div>
+
+        <div className="map-card-info">
+          <span>{getPurposeLabel(property)}</span>
+          <h3>{property.title || "Listed Property"}</h3>
+          <p>{property.location || property.district || "Lesotho"}</p>
+          <strong>{getDisplayPrice(property)}</strong>
+        </div>
+      </button>
+    );
   };
 
   return (
@@ -272,6 +341,7 @@ export default function PropertyMap({ properties = [], onBack }) {
             >
               All
             </button>
+
             <button
               type="button"
               className={purposeFilter === "rent" ? "active" : ""}
@@ -279,6 +349,7 @@ export default function PropertyMap({ properties = [], onBack }) {
             >
               Rent
             </button>
+
             <button
               type="button"
               className={purposeFilter === "buy" ? "active" : ""}
@@ -290,7 +361,7 @@ export default function PropertyMap({ properties = [], onBack }) {
 
           <button
             type="button"
-            className="map-location-btn"
+            className="map-location-btn desktop-location-btn"
             onClick={handleUseMyLocation}
           >
             📍 My Location
@@ -316,36 +387,9 @@ export default function PropertyMap({ properties = [], onBack }) {
                 <p>Try searching another location or changing Rent/Sale.</p>
               </div>
             ) : (
-              mappedProperties.slice(0, 14).map((property) => {
-                const image = getPropertyImage(property);
-                const isActive =
-                  String(activeProperty?.id || activeProperty?._id) ===
-                  String(property.id || property._id);
-
-                return (
-                  <button
-                    type="button"
-                    key={property.id || property._id}
-                    className={`map-property-card ${isActive ? "active" : ""}`}
-                    onClick={() => setActiveProperty(property)}
-                  >
-                    <div className="map-card-image">
-                      {image ? (
-                        <img src={image} alt={property.title || "Property"} />
-                      ) : (
-                        <span>No Image</span>
-                      )}
-                    </div>
-
-                    <div className="map-card-info">
-                      <span>{getPurposeLabel(property)}</span>
-                      <h3>{property.title || "Listed Property"}</h3>
-                      <p>{property.location || property.district || "Lesotho"}</p>
-                      <strong>{getDisplayPrice(property)}</strong>
-                    </div>
-                  </button>
-                );
-              })
+              mappedProperties.slice(0, 30).map((property) =>
+                renderPropertyCard(property, "desktop")
+              )
             )}
           </div>
         </aside>
@@ -358,6 +402,7 @@ export default function PropertyMap({ properties = [], onBack }) {
             />
 
             <RecenterMap position={mapCenter} />
+            <ResizeMapOnDrawerChange drawerOpen={mobileDrawerOpen} />
 
             {userLocation && (
               <Marker position={userLocation} icon={createUserLocationIcon()}>
@@ -385,7 +430,12 @@ export default function PropertyMap({ properties = [], onBack }) {
                     key={property.id || property._id}
                     position={position}
                     icon={createPropertyIcon(property, isActive)}
-                    eventHandlers={{ click: () => setActiveProperty(property) }}
+                    eventHandlers={{
+                      click: () => {
+                        setActiveProperty(property);
+                        setMobileDrawerOpen(false);
+                      },
+                    }}
                   >
                     <Popup>
                       <div className="property-popup-card">
@@ -420,7 +470,20 @@ export default function PropertyMap({ properties = [], onBack }) {
             </MarkerClusterGroup>
           </MapContainer>
 
-          {activeProperty && (
+          <div className="mobile-map-actions">
+            <button type="button" onClick={handleUseMyLocation}>
+              📍
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMobileDrawerOpen((prev) => !prev)}
+            >
+              🏠 {mappedProperties.length}
+            </button>
+          </div>
+
+          {activeProperty && !mobileDrawerOpen && (
             <div className="mobile-map-card">
               <div className="mobile-map-image">
                 {getPropertyImage(activeProperty) ? (
@@ -449,6 +512,61 @@ export default function PropertyMap({ properties = [], onBack }) {
               </button>
             </div>
           )}
+
+          <div
+            className={`mobile-listings-drawer ${
+              mobileDrawerOpen ? "open" : ""
+            }`}
+          >
+            <button
+              type="button"
+              className="mobile-drawer-handle"
+              onClick={() => setMobileDrawerOpen((prev) => !prev)}
+            >
+              <span></span>
+              <strong>{mappedProperties.length} Listings</strong>
+              <small>{mobileDrawerOpen ? "Hide" : "View"}</small>
+            </button>
+
+            <div className="mobile-drawer-filters">
+              <button
+                type="button"
+                className={purposeFilter === "all" ? "active" : ""}
+                onClick={() => setPurposeFilter("all")}
+              >
+                All
+              </button>
+
+              <button
+                type="button"
+                className={purposeFilter === "rent" ? "active" : ""}
+                onClick={() => setPurposeFilter("rent")}
+              >
+                Rent
+              </button>
+
+              <button
+                type="button"
+                className={purposeFilter === "buy" ? "active" : ""}
+                onClick={() => setPurposeFilter("buy")}
+              >
+                Sale
+              </button>
+            </div>
+
+            <div className="mobile-drawer-list">
+              {mappedProperties.length === 0 ? (
+                <div className="map-empty-state">
+                  <h3>No properties found</h3>
+                  <p>Try searching another location or changing Rent/Sale.</p>
+                </div>
+              ) : (
+                mappedProperties.slice(0, 40).map((property) =>
+                  renderPropertyCard(property, "mobile")
+                )
+              )}
+            </div>
+          </div>
         </main>
       </section>
     </div>
