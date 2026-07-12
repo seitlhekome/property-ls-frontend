@@ -247,10 +247,7 @@ export default function ListModal({
     newProp.type === "Apartment" ||
     newProp.type === "Guesthouse";
 
-  const showSizeField =
-    newProp.type === "Land" ||
-    newProp.type === "Commercial" ||
-    newProp.type === "Guesthouse";
+  const showSizeField = true;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">

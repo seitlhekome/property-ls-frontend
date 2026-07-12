@@ -615,9 +615,19 @@ export default function App() {
   }, [properties, activeTab, searchQuery, filters]);
 
   const currentUserId = getCurrentUserId();
-  const isAgent =
-    (getCurrentUserRole() || "").toString().toLowerCase().trim() === "agent";
-  const isHomePage = location.pathname === "/";
+
+const currentRole = (getCurrentUserRole() || "")
+  .toString()
+  .toLowerCase()
+  .trim();
+
+const isAgent =
+  currentRole === "agent" ||
+  currentRole === "admin" ||
+  currentRole === "seller" ||
+  currentRole === "property_agent";
+
+const isHomePage = location.pathname === "/";
 
   return (
   <div className="min-h-screen bg-gray-50">
@@ -763,7 +773,7 @@ export default function App() {
           path="/map"
           element={
             <PropertyMap
-              properties={filteredProperties}
+              properties={properties}
               onBack={() => navigate("/")}
             />
           }

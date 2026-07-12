@@ -3,7 +3,216 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API_URL } from "../config";
 
-export default function PropertyDetail({ favorites = [], toggleFav, currentUser }) {
+/* -------------------------------------------------------------------------- */
+/*                                    Icons                                   */
+/* -------------------------------------------------------------------------- */
+
+function ArrowLeftIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M19 12H5" />
+      <path d="m12 19-7-7 7-7" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </svg>
+  );
+}
+
+function HeartIcon({ className = "h-4 w-4", filled = false }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20.8 5.8a5.4 5.4 0 0 0-7.6 0L12 7l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 22l8.8-8.6a5.4 5.4 0 0 0 0-7.6Z" />
+    </svg>
+  );
+}
+
+function LocationIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
+  );
+}
+
+function BedIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 18v-6" />
+      <path d="M21 18v-6" />
+      <path d="M3 14h18" />
+      <path d="M5 14V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v5" />
+      <path d="M11 14v-3a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3" />
+      <path d="M3 18v2" />
+      <path d="M21 18v2" />
+    </svg>
+  );
+}
+
+function BathIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 13h16" />
+      <path d="M5 13v2a5 5 0 0 0 5 5h4a5 5 0 0 0 5-5v-2" />
+      <path d="M7 13V6.5A2.5 2.5 0 0 1 9.5 4 2.5 2.5 0 0 1 12 6.5" />
+      <path d="M10 7h4" />
+      <path d="M7 20v1" />
+      <path d="M17 20v1" />
+    </svg>
+  );
+}
+
+function AreaIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 9V4h5" />
+      <path d="M15 4h5v5" />
+      <path d="M20 15v5h-5" />
+      <path d="M9 20H4v-5" />
+      <path d="m4 4 6 6" />
+      <path d="m20 4-6 6" />
+      <path d="m20 20-6-6" />
+      <path d="m4 20 6-6" />
+    </svg>
+  );
+}
+
+function CalendarIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4" />
+      <path d="M8 3v4" />
+      <path d="M3 10h18" />
+    </svg>
+  );
+}
+
+function WhatsAppIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4A8 8 0 1 1 20 11.5Z" />
+      <path d="M8.8 8.2c.5 2.7 2.5 4.7 5.2 5.2" />
+      <path d="m8.8 8.2-1.2.7" />
+      <path d="m14 13.4 1.1-1.1" />
+    </svg>
+  );
+}
+
+function PhoneIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5 4h3l2 5-2 1.5a15 15 0 0 0 5.5 5.5L15 14l5 2v3a2 2 0 0 1-2 2C9.7 21 3 14.3 3 6a2 2 0 0 1 2-2Z" />
+    </svg>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              Property Detail                               */
+/* -------------------------------------------------------------------------- */
+
+export default function PropertyDetail({
+  favorites = [],
+  toggleFav,
+  currentUser,
+}) {
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -84,7 +293,11 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
         price: raw.price ?? "",
         rent_price: raw.rent_price ?? "",
         date_posted:
-          raw.date_posted || raw.createdAt || raw.created_at || raw.datePosted || "",
+          raw.date_posted ||
+          raw.createdAt ||
+          raw.created_at ||
+          raw.datePosted ||
+          "",
       };
     },
     [normalizeImages]
@@ -173,9 +386,10 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
     ? String(property.whatsapp).replace(/\D/g, "")
     : null;
 
-  const handleFavoriteClick = (e) => {
-    if (e) e.stopPropagation();
-    if (!propertyId) return;
+  const handleFavoriteClick = (event) => {
+    if (event) event.stopPropagation();
+    if (!propertyId || typeof toggleFav !== "function") return;
+
     setPageError("");
     toggleFav(propertyId);
   };
@@ -195,17 +409,22 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
   };
 
   const goToPreviousImage = () => {
-    setMainImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    setMainImageIndex((previous) =>
+      previous === 0 ? images.length - 1 : previous - 1
+    );
   };
 
   const goToNextImage = () => {
-    setMainImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    setMainImageIndex((previous) =>
+      previous === images.length - 1 ? 0 : previous + 1
+    );
   };
 
   const getPostedDate = () => {
     if (!property?.date_posted) return null;
 
     const parsed = new Date(property.date_posted);
+
     if (Number.isNaN(parsed.getTime())) return null;
 
     return parsed.toLocaleDateString();
@@ -215,8 +434,8 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="rounded-xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
+      <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-5 shadow-sm">
           <p className="text-sm text-gray-500">Loading property...</p>
         </div>
       </div>
@@ -225,15 +444,18 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
 
   if (!property) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm max-w-md w-full">
-          <p className="text-gray-700 font-medium">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <p className="font-medium text-gray-700">
             {pageError || "Property not found."}
           </p>
+
           <button
+            type="button"
             onClick={() => navigate("/")}
-            className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
+            <ArrowLeftIcon />
             Back to listings
           </button>
         </div>
@@ -242,50 +464,58 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 lg:px-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <button
-            onClick={() => navigate("/")}
-            className="mb-4 inline-flex items-center text-blue-600 hover:underline"
-          >
-            ← Back to listings
-          </button>
+    <div className="mx-auto max-w-7xl px-4 py-5 sm:py-6 lg:px-6">
+      <button
+        type="button"
+        onClick={() => navigate("/")}
+        className="mb-4 inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-3.5 text-sm font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
+      >
+        <ArrowLeftIcon className="h-4 w-4" />
+        Back to listings
+      </button>
 
-          {pageError && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-              <p className="text-sm text-red-700">{pageError}</p>
+      {pageError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-sm text-red-700">{pageError}</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
+        <main className="min-w-0">
+          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="p-4 sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <h1 className="text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
+                    {property.title}
+                  </h1>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold capitalize text-blue-700">
+                      {property.purpose}
+                    </span>
+
+                    <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                      {property.type}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="shrink-0 text-xl font-bold text-blue-600 sm:text-2xl">
+                  {displayPrice()}
+                </p>
+              </div>
             </div>
-          )}
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
-            <div className="mb-3">
-              <h1 className="text-2xl font-bold text-gray-800 sm:text-3xl">
-                {property.title}
-              </h1>
-            </div>
-
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 capitalize">
-                {property.purpose}
-              </span>
-              <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
-                {property.type}
-              </span>
-              <span className="text-lg font-bold text-blue-600">
-                {displayPrice()}
-              </span>
-            </div>
-
-            <div className="mb-5">
-              <div className="relative">
+            <div className="px-4 sm:px-5">
+              <div className="relative overflow-hidden rounded-2xl bg-gray-100">
                 <img
                   src={safeMainImage}
                   alt={property.title}
-                  className="mb-3 h-72 w-full rounded-xl object-cover sm:h-96"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = fallbackImage;
+                  className="h-72 w-full object-cover sm:h-[420px]"
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = fallbackImage;
                   }}
                 />
 
@@ -294,20 +524,22 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
                     <button
                       type="button"
                       onClick={goToPreviousImage}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-gray-700 shadow hover:bg-white"
+                      className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-white/90 text-gray-700 shadow-md backdrop-blur-sm transition hover:bg-white"
+                      aria-label="Previous image"
                     >
-                      ←
+                      <ArrowLeftIcon className="h-4 w-4" />
                     </button>
 
                     <button
                       type="button"
                       onClick={goToNextImage}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-gray-700 shadow hover:bg-white"
+                      className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-white/90 text-gray-700 shadow-md backdrop-blur-sm transition hover:bg-white"
+                      aria-label="Next image"
                     >
-                      →
+                      <ArrowRightIcon className="h-4 w-4" />
                     </button>
 
-                    <div className="absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-xs text-white">
+                    <div className="absolute bottom-3 right-3 rounded-full bg-gray-950/75 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
                       {mainImageIndex + 1} / {images.length}
                     </div>
                   </>
@@ -315,24 +547,25 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
               </div>
 
               {hasMultipleImages && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {images.map((img, i) => (
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  {images.map((img, index) => (
                     <button
                       type="button"
-                      key={`${img}-${i}`}
-                      onClick={() => setMainImageIndex(i)}
-                      className={`relative h-20 w-24 flex-shrink-0 overflow-hidden rounded-lg border-2 transition ${
-                        i === mainImageIndex
-                          ? "border-blue-600"
+                      key={`${img}-${index}`}
+                      onClick={() => setMainImageIndex(index)}
+                      className={`relative h-20 w-24 flex-shrink-0 overflow-hidden rounded-xl border-2 transition ${
+                        index === mainImageIndex
+                          ? "border-blue-600 shadow-sm"
                           : "border-transparent hover:border-gray-300"
                       }`}
+                      aria-label={`View image ${index + 1}`}
                     >
                       <img
                         src={img}
-                        alt={`Property ${i + 1}`}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = fallbackImage;
+                        alt={`Property ${index + 1}`}
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = fallbackImage;
                         }}
                         className="h-full w-full object-cover"
                       />
@@ -342,76 +575,130 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
               )}
             </div>
 
-            <div className="mb-6 grid grid-cols-1 gap-4 text-sm text-gray-700 md:grid-cols-2">
-              <p>
-                <strong>District:</strong> {property.district}
+            <div className="p-4 sm:p-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <BedIcon className="h-4 w-4" />
+                    <span className="text-xs font-medium">Bedrooms</span>
+                  </div>
+                  <p className="mt-1.5 text-sm font-semibold text-gray-900">
+                    {property.bedrooms}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <BathIcon className="h-4 w-4" />
+                    <span className="text-xs font-medium">Bathrooms</span>
+                  </div>
+                  <p className="mt-1.5 text-sm font-semibold text-gray-900">
+                    {property.bathrooms}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <AreaIcon className="h-4 w-4" />
+                    <span className="text-xs font-medium">Size</span>
+                  </div>
+                  <p className="mt-1.5 text-sm font-semibold text-gray-900">
+                    {property.size ? `${property.size} m²` : "N/A"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <LocationIcon className="h-4 w-4" />
+                    <span className="text-xs font-medium">District</span>
+                  </div>
+                  <p className="mt-1.5 truncate text-sm font-semibold text-gray-900">
+                    {property.district}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <LocationIcon className="h-4 w-4" />
+                    <span className="text-xs font-medium">Location</span>
+                  </div>
+                  <p className="mt-1.5 truncate text-sm font-semibold text-gray-900">
+                    {property.location}
+                  </p>
+                </div>
+
+                {postedDate && (
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <CalendarIcon className="h-4 w-4" />
+                      <span className="text-xs font-medium">Posted</span>
+                    </div>
+                    <p className="mt-1.5 text-sm font-semibold text-gray-900">
+                      {postedDate}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 border-t border-gray-100 pt-5">
+                <h2 className="text-lg font-semibold text-gray-950">
+                  Description
+                </h2>
+
+                <p className="mt-2 whitespace-pre-line text-sm leading-7 text-gray-600">
+                  {property.description || "No description provided."}
+                </p>
+              </div>
+
+              <div className="mt-6 border-t border-gray-100 pt-4">
+                <button
+                  type="button"
+                  onClick={handleFavoriteClick}
+                  className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition ${
+                    !isLoggedIn
+                      ? "bg-gray-100 text-gray-400"
+                      : isSaved
+                      ? "bg-red-50 text-red-600 hover:bg-red-100"
+                      : "bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600"
+                  }`}
+                  aria-label={
+                    isSaved ? "Remove saved property" : "Save property"
+                  }
+                >
+                  <HeartIcon
+                    className="h-4 w-4"
+                    filled={isSaved && isLoggedIn}
+                  />
+                  {isSaved && isLoggedIn ? "Saved" : "Save property"}
+                </button>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <aside className="h-fit lg:sticky lg:top-24">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
+                Contact agent
               </p>
-              <p>
-                <strong>Location:</strong> {property.location}
-              </p>
-              <p>
-                <strong>Bedrooms:</strong> {property.bedrooms}
-              </p>
-              <p>
-                <strong>Bathrooms:</strong> {property.bathrooms}
-              </p>
-              <p>
-                <strong>Size:</strong> {property.size ? `${property.size} m²` : "N/A"}
-              </p>
-              <p>
-                <strong>Listing Type:</strong>{" "}
-                <span className="capitalize">{property.purpose}</span>
-              </p>
-              {postedDate && (
-                <p>
-                  <strong>Date Posted:</strong> {postedDate}
+
+              {property.agent_name && (
+                <p className="mt-2 text-sm font-semibold text-gray-950">
+                  {property.agent_name}
                 </p>
               )}
             </div>
 
-            <div className="mb-6">
-              <h3 className="mb-2 text-lg font-semibold text-gray-900">Description</h3>
-              <p className="leading-7 text-gray-700">
-                {property.description || "No description provided."}
-              </p>
-            </div>
-
-            <button
-              onClick={handleFavoriteClick}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                !isLoggedIn
-                  ? "bg-gray-100 text-gray-400"
-                  : isSaved
-                  ? "bg-red-50 text-red-600"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              <span>{isSaved && isLoggedIn ? "Saved" : "Save"}</span>
-              <span>{isSaved && isLoggedIn ? "❤️" : "🤍"}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="lg:sticky lg:top-24 h-fit">
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Contact Agent
-            </h3>
-
-            {property.agent_name && (
-              <p className="mb-3 text-sm font-semibold text-gray-900">
-                {property.agent_name}
-              </p>
-            )}
-
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               {whatsappNumber && (
                 <a
                   href={`https://wa.me/${whatsappNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center rounded-md border border-green-600 bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
                 >
+                  <WhatsAppIcon className="h-4 w-4" />
                   WhatsApp
                 </a>
               )}
@@ -419,8 +706,9 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
               {property.phone && (
                 <a
                   href={`tel:${property.phone}`}
-                  className="flex items-center justify-center rounded-md border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
                 >
+                  <PhoneIcon className="h-4 w-4" />
                   Call {property.phone}
                 </a>
               )}
@@ -432,7 +720,7 @@ export default function PropertyDetail({ favorites = [], toggleFav, currentUser 
               </p>
             )}
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

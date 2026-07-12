@@ -1,6 +1,7 @@
 // src/config.js
-export const API_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV
-    ? "http://localhost:3002/api"
-    : "https://property-ls-backend-production.up.railway.app/api");
+
+const backendUrl =
+  process.env.REACT_APP_API_URL ||
+  "https://property-ls-backend-production.up.railway.app";
+
+export const API_URL = `${backendUrl.replace(/\/+$/, "")}/api`;

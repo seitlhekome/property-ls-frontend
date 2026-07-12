@@ -33,21 +33,170 @@ const DISTRICT_COORDS = {
 
 const DEFAULT_CENTER = [-29.3167, 27.4833];
 
+function normalizePurpose(value) {
+  const purpose = String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (
+    ["rent", "for rent", "rental", "to let", "let"].includes(purpose)
+  ) {
+    return "rent";
+  }
+
+  if (
+    ["buy", "sale", "for sale", "sell", "selling"].includes(purpose)
+  ) {
+    return "buy";
+  }
+
+  return purpose;
+}
+
+function BackIcon({ className = "map-ui-icon" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+function SearchIcon({ className = "map-ui-icon" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4 4" />
+    </svg>
+  );
+}
+
+function LocationIcon({ className = "map-ui-icon" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
+  );
+}
+
+function ListingsIcon({ className = "map-ui-icon" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="4" y="5" width="16" height="14" rx="2" />
+      <path d="M8 9h8" />
+      <path d="M8 13h8" />
+      <path d="M8 17h5" />
+    </svg>
+  );
+}
+
+function HomeOutlineIcon({ className = "map-ui-icon" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m3 11 9-7 9 7" />
+      <path d="M5 10v10h14V10" />
+      <path d="M9 20v-6h6v6" />
+    </svg>
+  );
+}
+
+function ChevronUpIcon({ className = "map-ui-icon" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m6 15 6-6 6 6" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ className = "map-ui-icon" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 function formatMoney(value) {
   if (!value || Number(value) <= 0) return "Price not specified";
   return `M ${Number(value).toLocaleString("en-LS")}`;
 }
 
 function formatMarkerPrice(property) {
+  const purpose = normalizePurpose(property?.purpose);
+
   const rawValue =
-    property?.purpose === "rent"
+    purpose === "rent"
       ? property?.rent_price || property?.price
       : property?.price || property?.rent_price;
 
   const value = Number(rawValue);
 
   if (!value || Number.isNaN(value)) {
-    return property?.purpose === "rent" ? "Rent" : "Sale";
+    return purpose === "rent" ? "Rent" : "Buy";
   }
 
   if (value >= 1000000) {
@@ -106,28 +255,35 @@ function getPropertyPosition(property) {
 }
 
 function getPurposeLabel(property) {
-  if (property?.purpose === "rent") return "For Rent";
-  if (property?.purpose === "buy") return "For Sale";
+  const purpose = normalizePurpose(property?.purpose);
+
+  if (purpose === "rent") return "For Rent";
+  if (purpose === "buy") return "For Sale";
+
   return "Property";
 }
 
 function getDisplayPrice(property) {
   if (!property) return "Price not specified";
 
-  if (property.purpose === "rent") {
-    return property.rent_price
+  const purpose = normalizePurpose(property?.purpose);
+
+  if (purpose === "rent") {
+    return Number(property?.rent_price) > 0
       ? `${formatMoney(property.rent_price)} / month`
-      : formatMoney(property.price);
+      : formatMoney(property?.price);
   }
 
-  return formatMoney(property.price || property.rent_price);
+  return formatMoney(property?.price || property?.rent_price);
 }
 
 function createPropertyIcon(property, isActive) {
+  const purpose = normalizePurpose(property?.purpose);
+
   const purposeClass =
-    property?.purpose === "rent"
+    purpose === "rent"
       ? "rent"
-      : property?.purpose === "buy"
+      : purpose === "buy"
       ? "sale"
       : "default";
 
@@ -203,8 +359,10 @@ export default function PropertyMap({ properties = [], onBack }) {
       const hasPosition = getPropertyPosition(property);
       if (!hasPosition) return false;
 
+      const propertyPurpose = normalizePurpose(property?.purpose);
+
       const matchesPurpose =
-        purposeFilter === "all" || property.purpose === purposeFilter;
+        purposeFilter === "all" || propertyPurpose === purposeFilter;
 
       const matchesSearch =
         !q ||
@@ -223,6 +381,20 @@ export default function PropertyMap({ properties = [], onBack }) {
       return matchesPurpose && matchesSearch;
     });
   }, [properties, searchTerm, purposeFilter]);
+
+  useEffect(() => {
+    if (!activeProperty) return;
+
+    const activeId = String(activeProperty?.id || activeProperty?._id || "");
+    const isStillVisible = mappedProperties.some(
+      (property) =>
+        String(property?.id || property?._id || "") === activeId
+    );
+
+    if (!isStillVisible) {
+      setActiveProperty(null);
+    }
+  }, [mappedProperties, activeProperty]);
 
   const activePosition = getPropertyPosition(activeProperty);
   const mapCenter = activePosition || userLocation || DEFAULT_CENTER;
@@ -316,22 +488,29 @@ export default function PropertyMap({ properties = [], onBack }) {
       <section className="property-map-toolbar">
         <div className="map-toolbar-left">
           <button type="button" className="map-back-btn" onClick={handleBack}>
-            ← Back
+            <BackIcon />
+            <span>Back</span>
           </button>
 
-          <div>
+          <div className="map-toolbar-heading">
             <h1>Explore Properties</h1>
-            <p>🏠 {mappedProperties.length} properties available</p>
+            <p>
+              <HomeOutlineIcon />
+              <span>{mappedProperties.length} properties available</span>
+            </p>
           </div>
         </div>
 
         <div className="map-toolbar-controls">
-          <input
-            type="text"
-            placeholder="Search location, district, or property..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="map-search-wrap">
+            <SearchIcon />
+            <input
+              type="text"
+              placeholder="Search location, district, or property..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
           <div className="map-purpose-buttons">
             <button
@@ -355,7 +534,7 @@ export default function PropertyMap({ properties = [], onBack }) {
               className={purposeFilter === "buy" ? "active" : ""}
               onClick={() => setPurposeFilter("buy")}
             >
-              Sale
+              Buy
             </button>
           </div>
 
@@ -364,7 +543,8 @@ export default function PropertyMap({ properties = [], onBack }) {
             className="map-location-btn desktop-location-btn"
             onClick={handleUseMyLocation}
           >
-            📍 My Location
+            <LocationIcon />
+            <span>My Location</span>
           </button>
         </div>
       </section>
@@ -384,7 +564,7 @@ export default function PropertyMap({ properties = [], onBack }) {
             {mappedProperties.length === 0 ? (
               <div className="map-empty-state">
                 <h3>No properties found</h3>
-                <p>Try searching another location or changing Rent/Sale.</p>
+                <p>Try searching another location or changing Rent/Buy.</p>
               </div>
             ) : (
               mappedProperties.slice(0, 30).map((property) =>
@@ -471,15 +651,26 @@ export default function PropertyMap({ properties = [], onBack }) {
           </MapContainer>
 
           <div className="mobile-map-actions">
-            <button type="button" onClick={handleUseMyLocation}>
-              📍
+            <button
+              type="button"
+              className="mobile-map-action-btn"
+              onClick={handleUseMyLocation}
+              aria-label="Use my location"
+              title="Use my location"
+            >
+              <LocationIcon className="mobile-action-icon" />
+              <span>Location</span>
             </button>
 
             <button
               type="button"
+              className="mobile-map-action-btn"
               onClick={() => setMobileDrawerOpen((prev) => !prev)}
+              aria-label={`Open ${mappedProperties.length} listings`}
+              title="View listings"
             >
-              🏠 {mappedProperties.length}
+              <ListingsIcon className="mobile-action-icon" />
+              <span>Listings</span>
             </button>
           </div>
 
@@ -522,10 +713,26 @@ export default function PropertyMap({ properties = [], onBack }) {
               type="button"
               className="mobile-drawer-handle"
               onClick={() => setMobileDrawerOpen((prev) => !prev)}
+              aria-expanded={mobileDrawerOpen}
             >
-              <span></span>
-              <strong>{mappedProperties.length} Listings</strong>
-              <small>{mobileDrawerOpen ? "Hide" : "View"}</small>
+              <span className="mobile-drawer-grip"></span>
+
+              <div className="mobile-drawer-title-row">
+                <div>
+                  <strong>{mappedProperties.length} Listings</strong>
+                  <small>
+                    {mobileDrawerOpen
+                      ? "Browse and select a property"
+                      : "Tap to view properties"}
+                  </small>
+                </div>
+
+                {mobileDrawerOpen ? (
+                  <ChevronDownIcon className="mobile-drawer-chevron" />
+                ) : (
+                  <ChevronUpIcon className="mobile-drawer-chevron" />
+                )}
+              </div>
             </button>
 
             <div className="mobile-drawer-filters">
@@ -558,7 +765,7 @@ export default function PropertyMap({ properties = [], onBack }) {
               {mappedProperties.length === 0 ? (
                 <div className="map-empty-state">
                   <h3>No properties found</h3>
-                  <p>Try searching another location or changing Rent/Sale.</p>
+                  <p>Try searching another location or changing Rent/Buy.</p>
                 </div>
               ) : (
                 mappedProperties.slice(0, 40).map((property) =>
