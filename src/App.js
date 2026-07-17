@@ -481,10 +481,21 @@ export default function App() {
   const listProp = async (propData, imageFiles) => {
     const token = localStorage.getItem("token");
 
-    if (!token || getCurrentUserRole()?.toLowerCase() !== "agent") {
-      showError("Only logged-in agents can list properties.");
-      return;
-    }
+   const currentRole = (getCurrentUserRole() || "")
+  .toString()
+  .toLowerCase()
+  .trim();
+
+const canListProperty =
+  currentRole === "agent" ||
+  currentRole === "admin" ||
+  currentRole === "seller" ||
+  currentRole === "property_agent";
+
+if (!token || !canListProperty) {
+  showError("Please sign in with an agent account to list a property.");
+  return;
+}
 
     clearFeedback();
     setIsListingProperty(true);

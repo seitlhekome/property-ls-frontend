@@ -8,6 +8,9 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import ListModal from "./ListModal";
 import { API_URL } from "../config";
+import Toast from "./ui/Toast";
+import LoadingButton from "./ui/LoadingButton";
+import ConfirmModal from "./ui/ConfirmModal";
 
 // ================= SMALL SVG ICONS =================
 
@@ -199,6 +202,17 @@ export default function Dashboard({
   const [loadingProps, setLoadingProps] = useState(false);
   const [visibilityUpdatingId, setVisibilityUpdatingId] = useState(null);
 
+  const [toast, setToast] = useState({
+    open: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
+
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [editUpdating, setEditUpdating] = useState(false);
+
   const [editProp, setEditProp] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -220,6 +234,15 @@ export default function Dashboard({
   const [activeDataView, setActiveDataView] = useState("saved");
 
   const token = localStorage.getItem("token");
+
+  const showToast = (type, title, message) => {
+    setToast({
+      open: true,
+      type,
+      title,
+      message,
+    });
+  };
 
   const getCurrentUserId = () =>
     currentUser?.id ||
@@ -454,36 +477,47 @@ export default function Dashboard({
     );
   }, [allProperties, favorites, getPropertyId]);
 
-  const handleDelete = async (property) => {
+  const handleDelete = (property) => {
     const propertyId = getPropertyId(property);
 
     if (!propertyId) {
-      alert("Invalid property ID");
+      showToast(
+        "error",
+        "Unable to delete",
+        "This property has an invalid ID."
+      );
       return;
     }
 
     if (!token) {
-      alert("You must be logged in");
+      showToast(
+        "warning",
+        "Sign in required",
+        "You must be logged in to delete a property."
+      );
       return;
     }
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${
-        property.title || "this property"
-      }"?`
-    );
+    setConfirmAction({
+      type: "delete",
+      property,
+    });
+  };
 
-    if (!confirmed) return;
+  const confirmDeleteProperty = async () => {
+    const property = confirmAction?.property;
+    const propertyId = getPropertyId(property);
+
+    if (!propertyId || !token) return;
 
     try {
-      await axios.delete(
-        `${API_URL}/properties/${propertyId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      setDeletingId(String(propertyId));
+
+      await axios.delete(`${API_URL}/properties/${propertyId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       setMyProperties((previous) =>
         previous.filter(
@@ -499,42 +533,66 @@ export default function Dashboard({
         )
       );
 
-      alert("Property deleted successfully");
+      setConfirmAction(null);
+
+      showToast(
+        "success",
+        "Property deleted",
+        "The listing has been permanently removed."
+      );
     } catch (error) {
       console.error("Delete failed:", error);
 
-      alert(
+      showToast(
+        "error",
+        "Delete failed",
         error.response?.data?.error ||
-          "Failed to delete property"
+          "The property could not be deleted. Please try again."
       );
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  const handleVisibilityChange = async (property) => {
+  const handleVisibilityChange = (property) => {
     const propertyId = getPropertyId(property);
 
     if (!propertyId) {
-      alert("Invalid property ID");
+      showToast(
+        "error",
+        "Unable to continue",
+        "This property has an invalid ID."
+      );
       return;
     }
 
     if (!token) {
-      alert("You must be logged in");
+      showToast(
+        "warning",
+        "Sign in required",
+        "You must be logged in to manage a property."
+      );
       return;
     }
 
     const isHidden =
       (property.status || "active") === "hidden";
 
+    setConfirmAction({
+      type: isHidden ? "show" : "hide",
+      property,
+    });
+  };
+
+  const confirmVisibilityChange = async () => {
+    const property = confirmAction?.property;
+    const propertyId = getPropertyId(property);
+
+    if (!propertyId || !token) return;
+
+    const isHidden =
+      (property.status || "active") === "hidden";
     const action = isHidden ? "show" : "hide";
-
-    const confirmed = window.confirm(
-      isHidden
-        ? "Show this property publicly again?"
-        : "Hide this property from the homepage, map, search and public listings?"
-    );
-
-    if (!confirmed) return;
 
     try {
       setVisibilityUpdatingId(String(propertyId));
@@ -550,18 +608,25 @@ export default function Dashboard({
       );
 
       await fetchProperties();
+      setConfirmAction(null);
 
-      alert(
+      showToast(
+        "success",
+        isHidden ? "Property published" : "Property hidden",
         isHidden
-          ? "Property is visible again."
-          : "Property hidden successfully."
+          ? "The listing is now visible on the homepage, map, search and public listings."
+          : "The listing is now hidden from public pages and remains available in your Dashboard."
       );
     } catch (error) {
       console.error(`${action} property failed:`, error);
 
-      alert(
+      showToast(
+        "error",
+        isHidden ? "Publish failed" : "Hide failed",
         error.response?.data?.error ||
-          `Failed to ${action} property`
+          `The property could not be ${
+            isHidden ? "published" : "hidden"
+          }. Please try again.`
       );
     } finally {
       setVisibilityUpdatingId(null);
@@ -578,11 +643,17 @@ export default function Dashboard({
     imageFiles = []
   ) => {
     if (!token) {
-      alert("You must be logged in");
+      showToast(
+        "warning",
+        "Sign in required",
+        "You must be logged in to update a property."
+      );
       return;
     }
 
     try {
+      setEditUpdating(true);
+
       const formData = new FormData();
 
       const cleanValue = (value) => {
@@ -646,7 +717,11 @@ export default function Dashboard({
         }
       );
 
-      alert("Property updated successfully");
+      showToast(
+        "success",
+        "Property updated",
+        "Your changes have been saved successfully."
+      );
 
       setShowEditModal(false);
       setEditProp(null);
@@ -655,10 +730,14 @@ export default function Dashboard({
     } catch (error) {
       console.error("Update failed:", error);
 
-      alert(
+      showToast(
+        "error",
+        "Update failed",
         error.response?.data?.error ||
-          "Failed to update property"
+          "The property could not be updated. Please try again."
       );
+    } finally {
+      setEditUpdating(false);
     }
   };
 
@@ -1080,6 +1159,89 @@ export default function Dashboard({
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <Toast
+        open={toast.open}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        onClose={() =>
+          setToast((previous) => ({
+            ...previous,
+            open: false,
+          }))
+        }
+      />
+
+      <ConfirmModal
+        open={Boolean(confirmAction)}
+        type={
+          confirmAction?.type === "delete"
+            ? "danger"
+            : confirmAction?.type === "show"
+            ? "success"
+            : "warning"
+        }
+        title={
+          confirmAction?.type === "delete"
+            ? "Delete Property"
+            : confirmAction?.type === "hide"
+            ? "Hide Property"
+            : "Publish Property"
+        }
+        message={
+          confirmAction?.type === "delete"
+            ? `Permanently delete "${
+                confirmAction?.property?.title || "this property"
+              }"?`
+            : confirmAction?.type === "hide"
+            ? "This property will be removed from the homepage, map, search and public listings."
+            : "This property will become visible publicly again."
+        }
+        description={
+          confirmAction?.type === "delete"
+            ? "This action cannot be undone."
+            : confirmAction?.type === "hide"
+            ? "You can restore it at any time from your Dashboard."
+            : "It may appear immediately across Property LS."
+        }
+        confirmText={
+          confirmAction?.type === "delete"
+            ? "Delete Property"
+            : confirmAction?.type === "hide"
+            ? "Hide Property"
+            : "Publish Property"
+        }
+        loadingText={
+          confirmAction?.type === "delete"
+            ? "Deleting..."
+            : confirmAction?.type === "hide"
+            ? "Hiding..."
+            : "Publishing..."
+        }
+        loading={
+          confirmAction?.type === "delete"
+            ? deletingId ===
+              String(getPropertyId(confirmAction?.property))
+            : visibilityUpdatingId ===
+              String(getPropertyId(confirmAction?.property))
+        }
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={
+          confirmAction?.type === "delete"
+            ? confirmDeleteProperty
+            : confirmVisibilityChange
+        }
+      >
+        {confirmAction?.type === "hide" && (
+          <ul className="space-y-2">
+            <li>• Removed from the homepage</li>
+            <li>• Removed from search results</li>
+            <li>• Removed from the property map</li>
+            <li>• Still available in your Dashboard</li>
+          </ul>
+        )}
+      </ConfirmModal>
+
       {/* ================= HEADER ================= */}
 
       <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
@@ -1728,44 +1890,47 @@ export default function Dashboard({
                       </button>
                     ) : (
                       <div className="grid w-full grid-cols-3 gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleEdit(property)
+                        <LoadingButton
+                          size="small"
+                          variant="primary"
+                          onClick={() => handleEdit(property)}
+                          disabled={
+                            isUpdating ||
+                            deletingId === String(id) ||
+                            editUpdating
                           }
-                          className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                          className="w-full"
                         >
                           Edit
-                        </button>
+                        </LoadingButton>
 
-                        <button
-                          type="button"
-                          disabled={isUpdating}
+                        <LoadingButton
+                          size="small"
+                          variant={isHidden ? "success" : "warning"}
+                          loading={isUpdating}
+                          loadingText={isHidden ? "Publishing..." : "Hiding..."}
                           onClick={() =>
                             handleVisibilityChange(property)
                           }
-                          className={`rounded-lg px-3 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                            isHidden
-                              ? "bg-emerald-600 hover:bg-emerald-700"
-                              : "bg-amber-500 hover:bg-amber-600"
-                          }`}
-                        >
-                          {isUpdating
-                            ? "Updating..."
-                            : isHidden
-                            ? "Show"
-                            : "Hide"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDelete(property)
+                          disabled={
+                            deletingId === String(id) || editUpdating
                           }
-                          className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                          className="w-full"
+                        >
+                          {isHidden ? "Show" : "Hide"}
+                        </LoadingButton>
+
+                        <LoadingButton
+                          size="small"
+                          variant="dark"
+                          loading={deletingId === String(id)}
+                          loadingText="Deleting..."
+                          onClick={() => handleDelete(property)}
+                          disabled={isUpdating || editUpdating}
+                          className="w-full"
                         >
                           Delete
-                        </button>
+                        </LoadingButton>
                       </div>
                     )}
                   </div>
@@ -1781,6 +1946,7 @@ export default function Dashboard({
           newProp={editProp}
           setNewProp={setEditProp}
           listPropBackend={updateProp}
+          loading={editUpdating}
           setShowListModal={setShowEditModal}
           currentUser={currentUser}
         />

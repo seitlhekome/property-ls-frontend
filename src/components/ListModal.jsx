@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import Toast from "./ui/Toast";
+import LoadingButton from "./ui/LoadingButton";
 
 export default function ListModal({
   newProp,
@@ -10,9 +12,24 @@ export default function ListModal({
 }) {
   const [imagesPreview, setImagesPreview] = useState([]);
   const [locationStatus, setLocationStatus] = useState("");
+  const [toast, setToast] = useState({
+    open: false,
+    type: "info",
+    title: "",
+    message: "",
+  });
   const originalImagesRef = useRef([]);
 
   const isEditMode = Boolean(newProp?.id || newProp?._id);
+
+  const showToast = (type, title, message) => {
+    setToast({
+      open: true,
+      type,
+      title,
+      message,
+    });
+  };
 
   const districtOptions = [
     "Maseru",
@@ -161,16 +178,51 @@ export default function ListModal({
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!newProp.title?.trim()) return alert("Title is required");
-    if (!newProp.district?.trim()) return alert("District is required");
-    if (!newProp.location?.trim()) return alert("Location is required");
+    if (loading) return;
+
+    if (!newProp.title?.trim()) {
+      showToast(
+        "warning",
+        "Title required",
+        "Please enter a clear title for this property."
+      );
+      return;
+    }
+
+    if (!newProp.district?.trim()) {
+      showToast(
+        "warning",
+        "District required",
+        "Please select the district where the property is located."
+      );
+      return;
+    }
+
+    if (!newProp.location?.trim()) {
+      showToast(
+        "warning",
+        "Location required",
+        "Please enter the street, area or neighbourhood."
+      );
+      return;
+    }
 
     if (newProp.purpose === "buy" && !newProp.price) {
-      return alert("Price is required");
+      showToast(
+        "warning",
+        "Sale price required",
+        "Please enter the selling price for this property."
+      );
+      return;
     }
 
     if (newProp.purpose === "rent" && !newProp.rent_price) {
-      return alert("Rent price is required");
+      showToast(
+        "warning",
+        "Rent price required",
+        "Please enter the monthly rental price."
+      );
+      return;
     }
 
     const allImages = Array.isArray(newProp.images) ? newProp.images : [];
@@ -219,11 +271,15 @@ export default function ListModal({
 
   const useMyLocation = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your device");
+      showToast(
+        "warning",
+        "Location unavailable",
+        "Your device does not support location detection. You can enter the coordinates manually."
+      );
       return;
     }
 
-    setLocationStatus("Fetching your location...");
+    setLocationStatus("Detecting your current location...");
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -232,11 +288,20 @@ export default function ListModal({
           lat: Number(pos.coords.latitude.toFixed(6)),
           lng: Number(pos.coords.longitude.toFixed(6)),
         }));
-        setLocationStatus("Location captured ✔");
+        setLocationStatus("Location added successfully.");
+        showToast(
+          "success",
+          "Location added",
+          "The property coordinates have been filled in successfully."
+        );
       },
       () => {
-        setLocationStatus("Unable to access your location");
-        alert("Unable to access your location");
+        setLocationStatus("Unable to access your location.");
+        showToast(
+          "error",
+          "Location access failed",
+          "Please allow location access or enter the coordinates manually."
+        );
       },
       { enableHighAccuracy: true }
     );
@@ -250,7 +315,21 @@ export default function ListModal({
   const showSizeField = true;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+    <>
+      <Toast
+        open={toast.open}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        onClose={() =>
+          setToast((previous) => ({
+            ...previous,
+            open: false,
+          }))
+        }
+      />
+
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
       <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
         <div className="mb-5 flex items-center justify-between gap-4">
           <div>
@@ -265,7 +344,8 @@ export default function ListModal({
           <button
             type="button"
             onClick={() => setShowListModal(false)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            disabled={loading}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Close
           </button>
@@ -274,7 +354,7 @@ export default function ListModal({
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
-              <label className="mb-1 block font-semibold text-gray-800">Title</label>
+              <label className="mb-1 block font-semibold text-gray-800">Title <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 name="title"
@@ -314,7 +394,7 @@ export default function ListModal({
             </div>
 
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">District</label>
+              <label className="mb-1 block font-semibold text-gray-800">District <span className="text-red-500">*</span></label>
               <select
                 name="district"
                 value={newProp.district || "Maseru"}
@@ -328,7 +408,7 @@ export default function ListModal({
             </div>
 
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">Street / Area</label>
+              <label className="mb-1 block font-semibold text-gray-800">Street / Area <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 name="location"
@@ -372,7 +452,8 @@ export default function ListModal({
               <button
                 type="button"
                 onClick={useMyLocation}
-                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700"
+                disabled={loading}
+                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
               >
                 Use My Location
               </button>
@@ -383,7 +464,7 @@ export default function ListModal({
 
           {newProp.purpose === "buy" && (
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">Price (Buy)</label>
+              <label className="mb-1 block font-semibold text-gray-800">Price (Buy) <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 name="price"
@@ -397,7 +478,7 @@ export default function ListModal({
 
           {newProp.purpose === "rent" && (
             <div>
-              <label className="mb-1 block font-semibold text-gray-800">Rent Price</label>
+              <label className="mb-1 block font-semibold text-gray-800">Rent Price <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 name="rent_price"
@@ -459,7 +540,7 @@ export default function ListModal({
               onChange={handleChange}
               rows={5}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              placeholder="Write a clear description of the property, rooms, access, features, surroundings, and anything buyers or renters should know."
+              placeholder="Tell buyers or renters what makes this property special. Mention nearby schools, shops, security, parking, finishes and other useful details."
             />
           </div>
 
@@ -502,12 +583,22 @@ export default function ListModal({
               multiple
               accept="image/*"
               onChange={handleImages}
-              className="block w-full text-sm text-gray-700"
+              disabled={loading}
+              className="block w-full text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
             />
 
             <p className="mt-2 text-xs text-gray-500">
               You can select many photos. They will appear below, and you can remove any photo before saving.
             </p>
+
+            <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700">
+              <span aria-hidden="true">📷</span>
+              {imagesPreview.length === 0
+                ? "No photos selected yet"
+                : `${imagesPreview.length} ${
+                    imagesPreview.length === 1 ? "photo" : "photos"
+                  } ready`}
+            </div>
           </div>
 
           {imagesPreview.length > 0 && (
@@ -529,7 +620,8 @@ export default function ListModal({
                   <button
                     type="button"
                     onClick={() => handleRemoveImage(i)}
-                    className="w-full rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100"
+                    disabled={loading}
+                    className="w-full rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Remove Photo
                   </button>
@@ -538,31 +630,46 @@ export default function ListModal({
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-2">
+          {loading && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+              <p className="text-sm font-semibold text-blue-800">
+                {isEditMode
+                  ? "Updating your property..."
+                  : "Creating your listing..."}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-blue-700">
+                Please keep this window open while the property details and photos are being saved.
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-col-reverse justify-end gap-3 pt-2 sm:flex-row">
             <button
               type="button"
               onClick={() => setShowListModal(false)}
-              className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition hover:bg-gray-50"
+              disabled={loading}
+              className="rounded-xl border border-gray-300 px-4 py-2.5 font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancel
             </button>
 
-            <button
+            <LoadingButton
               type="submit"
-              disabled={loading}
-              className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+              loading={loading}
+              loadingText={
+                isEditMode
+                  ? "Updating property..."
+                  : "Creating listing..."
+              }
+              variant="primary"
+              className="sm:min-w-[180px]"
             >
-              {loading
-                ? isEditMode
-                  ? "Updating..."
-                  : "Listing..."
-                : isEditMode
-                ? "Update Property"
-                : "List Property"}
-            </button>
+              {isEditMode ? "Update Property" : "List Property"}
+            </LoadingButton>
           </div>
         </form>
       </div>
     </div>
+    </>
   );
 }
