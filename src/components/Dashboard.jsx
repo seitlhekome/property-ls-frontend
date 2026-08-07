@@ -11,6 +11,7 @@ import { API_URL } from "../config";
 import Toast from "./ui/Toast";
 import LoadingButton from "./ui/LoadingButton";
 import ConfirmModal from "./ui/ConfirmModal";
+import AdminDashboard from "./AdminDashboard";
 
 // ================= SMALL SVG ICONS =================
 
@@ -215,6 +216,13 @@ export default function Dashboard({
 
   const [editProp, setEditProp] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  // ================= PROMOTION STATE =================
+  const [promotionProperty, setPromotionProperty] = useState(null);
+  const [promotionDays, setPromotionDays] = useState(7);
+  const [promotionSubmitting, setPromotionSubmitting] = useState(false);
+  const [dismissedCancellationNotices, setDismissedCancellationNotices] =
+    useState(() => new Set());
 
   const [profileForm, setProfileForm] = useState({
     name: "",
@@ -462,6 +470,46 @@ export default function Dashboard({
     fetchProperties();
   }, [fetchProperties]);
 
+  // Hide the cancelled-sponsorship confirmation after 5 seconds.
+  // This is frontend-only: the database still keeps promotion_status = "cancelled"
+  // so the admin Promotion Centre retains the cancellation history.
+  useEffect(() => {
+    const timers = [];
+
+    myProperties.forEach((property) => {
+      if (getPromotionStatus(property) !== "cancelled") return;
+
+      const propertyId = getPropertyId(property);
+      if (!propertyId) return;
+
+      const noticeKey = `${propertyId}:${
+        property.promotion_end || property.promoted_at || "cancelled"
+      }`;
+
+      if (dismissedCancellationNotices.has(noticeKey)) return;
+
+      const timer = window.setTimeout(() => {
+        setDismissedCancellationNotices((previous) => {
+          if (previous.has(noticeKey)) return previous;
+
+          const next = new Set(previous);
+          next.add(noticeKey);
+          return next;
+        });
+      }, 5000);
+
+      timers.push(timer);
+    });
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [
+    myProperties,
+    getPropertyId,
+    dismissedCancellationNotices,
+  ]);
+
   useEffect(() => {
     if (activeDataView === "users" && isAdmin) {
       fetchUsers();
@@ -551,6 +599,158 @@ export default function Dashboard({
       );
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // ================= PROMOTION HELPERS =================
+
+  const getPromotionStatus = (property) =>
+    String(property?.promotion_status || "none")
+      .toLowerCase()
+      .trim();
+
+  const isPromotionActive = (property) =>
+    property?.is_promoted === true &&
+    getPromotionStatus(property) === "active";
+
+  const getPromotionDaysRemaining = (property) => {
+    if (!property?.promotion_end) return 0;
+
+    const promotionEnd = new Date(property.promotion_end);
+
+    if (Number.isNaN(promotionEnd.getTime())) return 0;
+
+    return Math.max(
+      0,
+      Math.ceil(
+        (promotionEnd.getTime() - Date.now()) /
+          (1000 * 60 * 60 * 24)
+      )
+    );
+  };
+
+  const formatPromotionEndDate = (property) => {
+    if (!property?.promotion_end) return "";
+
+    const promotionEnd = new Date(property.promotion_end);
+
+    if (Number.isNaN(promotionEnd.getTime())) return "";
+
+    return promotionEnd.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const openPromotionDialog = (property) => {
+    const propertyId = getPropertyId(property);
+
+    if (!propertyId) {
+      showToast(
+        "error",
+        "Unable to continue",
+        "This property has an invalid ID."
+      );
+      return;
+    }
+
+    if ((property.status || "active") !== "active") {
+      showToast(
+        "warning",
+        "Publish property first",
+        "Only publicly active properties can be sponsored."
+      );
+      return;
+    }
+
+    setPromotionProperty(property);
+    setPromotionDays(7);
+  };
+
+  const closePromotionDialog = () => {
+    if (promotionSubmitting) return;
+
+    setPromotionProperty(null);
+    setPromotionDays(7);
+  };
+
+  const submitPromotion = async () => {
+    const propertyId = getPropertyId(promotionProperty);
+
+    if (!propertyId || !token) {
+      showToast(
+        "warning",
+        "Sign in required",
+        "You must be logged in to request a promotion."
+      );
+      return;
+    }
+
+    if (![7, 14].includes(Number(promotionDays))) {
+      showToast(
+        "error",
+        "Invalid package",
+        "Please choose either the 7-day or 14-day package."
+      );
+      return;
+    }
+
+    try {
+      setPromotionSubmitting(true);
+
+      const response = await axios.put(
+        `${API_URL}/properties/${propertyId}/promotion/request`,
+        {
+          days: Number(promotionDays),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const updatedProperty = response.data?.property;
+
+      if (updatedProperty) {
+        setMyProperties((previous) =>
+          previous.map((property) =>
+            String(getPropertyId(property)) === String(propertyId)
+              ? {
+                  ...property,
+                  ...updatedProperty,
+                }
+              : property
+          )
+        );
+      } else {
+        await fetchProperties();
+      }
+
+      setPromotionProperty(null);
+      setPromotionDays(7);
+
+      const autoApproved = response.data?.auto_approved === true;
+
+      showToast(
+        "success",
+        autoApproved ? "Promotion activated" : "Promotion requested",
+        autoApproved
+          ? "Your property is now sponsored and receiving priority placement."
+          : "Your sponsorship request is waiting for administrator approval."
+      );
+    } catch (error) {
+      console.error("Promotion request failed:", error);
+
+      showToast(
+        "error",
+        "Request failed",
+        error.response?.data?.error ||
+          "The promotion request could not be submitted. Please try again."
+      );
+    } finally {
+      setPromotionSubmitting(false);
     }
   };
 
@@ -921,6 +1121,10 @@ export default function Dashboard({
       (property) => property.status === "hidden"
     ).length;
 
+    const sponsoredCount = myProperties.filter((property) =>
+      isPromotionActive(property)
+    ).length;
+
     const buyCount = myProperties.filter(
       (property) => property.purpose === "buy"
     ).length;
@@ -935,6 +1139,7 @@ export default function Dashboard({
       total,
       activeCount,
       hiddenCount,
+      sponsoredCount,
       buyCount,
       rentCount,
       savedCount,
@@ -956,6 +1161,12 @@ export default function Dashboard({
     if (activeDataView === "hidden") {
       return myProperties.filter(
         (property) => property.status === "hidden"
+      );
+    }
+
+    if (activeDataView === "sponsored") {
+      return myProperties.filter((property) =>
+        isPromotionActive(property)
       );
     }
 
@@ -984,6 +1195,7 @@ export default function Dashboard({
     if (activeDataView === "saved") return "Saved Properties";
     if (activeDataView === "active") return "Active Properties";
     if (activeDataView === "hidden") return "Hidden Properties";
+    if (activeDataView === "sponsored") return "Sponsored Properties";
     if (activeDataView === "buy") return "Properties for Sale";
     if (activeDataView === "rent") return "Properties for Rent";
 
@@ -1009,6 +1221,10 @@ export default function Dashboard({
 
     if (activeDataView === "hidden") {
       return "These listings are hidden from public pages but remain available for editing or activation.";
+    }
+
+    if (activeDataView === "sponsored") {
+      return "These listings currently receive priority placement across Property LS.";
     }
 
     if (activeDataView === "buy") {
@@ -1047,6 +1263,12 @@ export default function Dashboard({
         value: stats.activeCount,
         stateKey: "active",
         icon: CheckIcon,
+      },
+      {
+        title: "Sponsored",
+        value: stats.sponsoredCount,
+        stateKey: "sponsored",
+        icon: EyeIcon,
       },
       {
         title: "Hidden",
@@ -1156,6 +1378,15 @@ export default function Dashboard({
       ))}
     </div>
   );
+
+  if (isAdmin) {
+    return (
+      <AdminDashboard
+        currentUser={currentUser}
+        setShowListModal={setShowListModal}
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -1313,8 +1544,8 @@ export default function Dashboard({
         <section
           className={`mb-8 grid gap-3 ${
             isAdmin
-              ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8"
-              : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7"
+              ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9"
+              : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8"
           }`}
         >
           {statItems.map((item) => (
@@ -1690,6 +1921,23 @@ export default function Dashboard({
             const isUpdating =
               visibilityUpdatingId === String(id);
 
+            const promotionStatus = getPromotionStatus(property);
+            const promotionActive = isPromotionActive(property);
+            const promotionPending = promotionStatus === "pending";
+            const promotionExpired = promotionStatus === "expired";
+            const promotionRejected = promotionStatus === "rejected";
+            const promotionCancelled = promotionStatus === "cancelled";
+            const cancellationNoticeKey = `${id}:${
+              property.promotion_end || property.promoted_at || "cancelled"
+            }`;
+            const showCancellationNotice =
+              promotionCancelled &&
+              !dismissedCancellationNotices.has(cancellationNoticeKey);
+            const promotionDaysRemaining =
+              getPromotionDaysRemaining(property);
+            const promotionEndDate =
+              formatPromotionEndDate(property);
+
             const postedDate =
               property.createdAt || property.date_posted;
 
@@ -1745,6 +1993,12 @@ export default function Dashboard({
                       {isHidden
                         ? "Hidden from Public"
                         : "Active"}
+                    </span>
+                  )}
+
+                  {!isSavedView && promotionActive && (
+                    <span className="absolute bottom-3 left-3 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
+                      Sponsored
                     </span>
                   )}
 
@@ -1859,20 +2113,183 @@ export default function Dashboard({
                       </div>
                     )}
 
-                  {/* POSTED DATE */}
+                  {/* POSTED DATE + VIEWS */}
 
-                  <div className="mt-3 flex items-center gap-1.5 text-xs text-gray-400">
-                    <CalendarIcon className="h-3.5 w-3.5" />
+                  <div className="mt-3 flex items-center justify-between gap-3 text-xs text-gray-400">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
 
-                    <span>
-                      Posted{" "}
-                      {postedDate
-                        ? new Date(
-                            postedDate
-                          ).toLocaleDateString()
-                        : "—"}
-                    </span>
+                      <span className="truncate">
+                        Posted{" "}
+                        {postedDate
+                          ? new Date(
+                              postedDate
+                            ).toLocaleDateString()
+                          : "—"}
+                      </span>
+                    </div>
+
+                    <div
+                      className="inline-flex shrink-0 items-center gap-1.5"
+                      title={`${Number(property.views || 0).toLocaleString()} ${
+                        Number(property.views || 0) === 1 ? "view" : "views"
+                      }`}
+                    >
+                      <EyeIcon className="h-3.5 w-3.5" />
+                      <span>
+                        {Number(property.views || 0).toLocaleString()}{" "}
+                        {Number(property.views || 0) === 1 ? "view" : "views"}
+                      </span>
+                    </div>
                   </div>
+
+                  {!isSavedView && (
+                    <div className="mt-4">
+                      {promotionActive ? (
+                        <div className="rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold text-blue-700">
+                                Sponsored listing
+                              </p>
+
+                              <p className="mt-1 text-sm font-medium text-gray-900">
+                                {promotionDaysRemaining > 0
+                                  ? `${promotionDaysRemaining} ${
+                                      promotionDaysRemaining === 1
+                                        ? "day"
+                                        : "days"
+                                    } remaining`
+                                  : "Ends today"}
+                              </p>
+
+                              {promotionEndDate && (
+                                <p className="mt-1 text-[11px] text-gray-500">
+                                  Ends {promotionEndDate}
+                                </p>
+                              )}
+                            </div>
+
+                            <span className="rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-semibold text-white">
+                              Active
+                            </span>
+                          </div>
+                        </div>
+                      ) : promotionPending ? (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold text-amber-700">
+                                Promotion requested
+                              </p>
+
+                              <p className="mt-1 text-sm text-gray-700">
+                                Waiting for administrator approval.
+                              </p>
+                            </div>
+
+                            <span className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-amber-700">
+                              Pending
+                            </span>
+                          </div>
+                        </div>
+                      ) : promotionRejected ? (
+                        <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-xs font-semibold text-rose-700">
+                                Promotion not approved
+                              </p>
+
+                              <p className="mt-1 text-sm text-gray-600">
+                                This request was not approved. You can submit a new promotion request when ready.
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => openPromotionDialog(property)}
+                              disabled={isHidden}
+                              className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                                isHidden
+                                  ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                                  : "border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                              }`}
+                            >
+                              {isHidden ? "Publish first" : "Request again"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : showCancellationNotice ? (
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-xs font-semibold text-gray-700">
+                                Sponsorship cancelled
+                              </p>
+
+                              <p className="mt-1 text-sm text-gray-500">
+                                This listing is back in its normal position and can be promoted again.
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => openPromotionDialog(property)}
+                              disabled={isHidden}
+                              className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                                isHidden
+                                  ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                                  : "border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                              }`}
+                            >
+                              {isHidden ? "Publish first" : "Promote again"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : promotionExpired ? (
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-xs font-semibold text-gray-700">
+                                Sponsorship expired
+                              </p>
+
+                              <p className="mt-1 text-sm text-gray-500">
+                                The promotion has ended and this listing is back in its normal position.
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => openPromotionDialog(property)}
+                              disabled={isHidden}
+                              className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                                isHidden
+                                  ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                                  : "border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                              }`}
+                            >
+                              {isHidden ? "Publish first" : "Promote again"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openPromotionDialog(property)}
+                          disabled={isHidden}
+                          className={`flex w-full items-center justify-center rounded-xl border px-3.5 py-2.5 text-sm font-semibold transition ${
+                            isHidden
+                              ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
+                              : "border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100"
+                          }`}
+                        >
+                          {isHidden ? "Publish to promote" : "Promote Property"}
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {/* ACTION BUTTONS */}
 
@@ -1939,6 +2356,153 @@ export default function Dashboard({
             );
           })}
         </section>
+      )}
+
+      {promotionProperty && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-[2px]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closePromotionDialog();
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="promotion-modal-title"
+            className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+          >
+            <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                    Sponsored placement
+                  </p>
+
+                  <h2
+                    id="promotion-modal-title"
+                    className="mt-1 text-xl font-bold text-gray-900"
+                  >
+                    Promote your property
+                  </h2>
+
+                  <p className="mt-1 text-sm leading-6 text-gray-500">
+                    Choose how long you want this property to receive
+                    priority placement.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closePromotionDialog}
+                  disabled={promotionSubmitting}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label="Close promotion window"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="px-5 py-5 sm:px-6">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <p className="text-xs font-medium text-gray-500">
+                  Selected property
+                </p>
+
+                <p className="mt-1 truncate text-sm font-semibold text-gray-900">
+                  {promotionProperty.title || "Untitled Property"}
+                </p>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {[7, 14].map((days) => {
+                  const selected =
+                    Number(promotionDays) === Number(days);
+
+                  return (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => setPromotionDays(days)}
+                      className={`rounded-xl border p-4 text-left transition ${
+                        selected
+                          ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
+                          : "border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p
+                            className={`text-base font-bold ${
+                              selected
+                                ? "text-blue-700"
+                                : "text-gray-900"
+                            }`}
+                          >
+                            {days} Days
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-500">
+                            Sponsored homepage placement
+                          </p>
+                        </div>
+
+                        <span
+                          className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                            selected
+                              ? "border-blue-600 bg-blue-600"
+                              : "border-gray-300 bg-white"
+                          }`}
+                        >
+                          {selected && (
+                            <span className="h-2 w-2 rounded-full bg-white" />
+                          )}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+                <p className="text-sm font-semibold text-gray-900">
+                  Your sponsored listing will:
+                </p>
+
+                <div className="mt-3 space-y-2 text-sm text-gray-600">
+                  <p>• Appear before ordinary listings</p>
+                  <p>• Display the Sponsored badge</p>
+                  <p>• Receive increased homepage visibility</p>
+                  <p>• Remain sponsored for the selected period</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+              <button
+                type="button"
+                onClick={closePromotionDialog}
+                disabled={promotionSubmitting}
+                className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={submitPromotion}
+                disabled={promotionSubmitting}
+                className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {promotionSubmitting
+                  ? "Submitting..."
+                  : `Request ${promotionDays}-Day Promotion`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showEditModal && editProp && isAgent && (

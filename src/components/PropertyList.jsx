@@ -296,6 +296,23 @@ export default function PropertyList({
     );
   }
 
+  const makeImageUrlSecure = (url) => {
+    if (typeof url !== "string" || !url.trim()) {
+      return fallbackImage;
+    }
+
+    const cleanedUrl = url.trim();
+
+    // Capacitor serves the Android app from https://localhost.
+    // Convert insecure absolute image URLs to HTTPS so Android WebView
+    // does not block them as mixed content.
+    if (/^http:\/\//i.test(cleanedUrl)) {
+      return cleanedUrl.replace(/^http:\/\//i, "https://");
+    }
+
+    return cleanedUrl;
+  };
+
   const getImageUrl = (property) => {
     if (!Array.isArray(property?.images) || property.images.length === 0) {
       return fallbackImage;
@@ -303,17 +320,16 @@ export default function PropertyList({
 
     const firstImage = property.images[0];
 
-    if (typeof firstImage === "string" && firstImage.trim()) {
-      return firstImage;
+    if (typeof firstImage === "string") {
+      return makeImageUrlSecure(firstImage);
     }
 
     if (
       firstImage &&
       typeof firstImage === "object" &&
-      typeof firstImage.url === "string" &&
-      firstImage.url.trim()
+      typeof firstImage.url === "string"
     ) {
-      return firstImage.url;
+      return makeImageUrlSecure(firstImage.url);
     }
 
     return fallbackImage;
@@ -433,6 +449,9 @@ export default function PropertyList({
           const priceDisplay = getPriceDisplay(property);
 
           const typeLabel = property?.type || "Property";
+          const isSponsored =
+            property?.is_promoted === true &&
+            property?.promotion_status === "active";
 
           const bedrooms =
             property?.bedrooms !== undefined &&
@@ -487,11 +506,19 @@ export default function PropertyList({
                   handlePropertyOpen();
                 }
               }}
-              className="group flex min-h-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100"
+              className={`group relative flex min-h-0 cursor-pointer flex-col overflow-hidden rounded-2xl bg-white transition duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100 ${
+                isSponsored
+                  ? "border border-blue-200 shadow-[0_10px_30px_rgba(37,99,235,0.10)] hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-[0_14px_34px_rgba(37,99,235,0.14)]"
+                  : "border border-gray-200 shadow-sm hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
+              }`}
               aria-label={`View details for ${
                 property?.title || "this property"
               }`}
             >
+              {isSponsored && (
+                <div className="h-0.5 w-full bg-blue-600" />
+              )}
+
               <div className="relative h-44 w-full overflow-hidden bg-gray-100 sm:h-48">
                 <img
                   src={image}
@@ -503,6 +530,12 @@ export default function PropertyList({
                     event.currentTarget.src = fallbackImage;
                   }}
                 />
+
+                {isSponsored && (
+                  <div className="absolute left-3 top-3 inline-flex items-center rounded-full border border-blue-500/80 bg-blue-600/95 px-2.5 py-1 text-[9px] font-semibold tracking-wide text-white shadow-sm backdrop-blur-sm sm:text-[10px]">
+                    Sponsored
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-1 flex-col p-3.5 sm:p-4">
@@ -588,9 +621,11 @@ export default function PropertyList({
                     <span />
                   )}
 
-                  <span className="shrink-0 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-                    {typeLabel}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                      {typeLabel}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-auto flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
