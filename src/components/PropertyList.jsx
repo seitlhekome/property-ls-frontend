@@ -515,10 +515,7 @@ export default function PropertyList({
                 property?.title || "this property"
               }`}
             >
-              {isSponsored && (
-                <div className="h-0.5 w-full bg-blue-600" />
-              )}
-
+      
               <div className="relative h-44 w-full overflow-hidden bg-gray-100 sm:h-48">
                 <img
                   src={image}
