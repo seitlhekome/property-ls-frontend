@@ -14,6 +14,7 @@ import Footer from "./components/Footer";
 import PropertyMap from "./components/PropertyMap";
 import SavedProperties from "./components/SavedProperties";
 import PrivacyPolicy from "./components/PrivacyPolicy";
+import DeleteAccount from "./components/DeleteAccount";
 
 
 import { API_URL } from "./config";
@@ -763,6 +764,7 @@ const isHomePage = location.pathname === "/";
 
       <Routes>
   <Route path="/privacy" element={<PrivacyPolicy />} />
+  <Route path="/delete-account" element={<DeleteAccount />} />
   <Route
     path="/"
     element={
