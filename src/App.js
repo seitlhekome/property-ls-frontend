@@ -13,6 +13,7 @@ import CalculatorModal from "./components/CalculatorModal";
 import Footer from "./components/Footer";
 import PropertyMap from "./components/PropertyMap";
 import SavedProperties from "./components/SavedProperties";
+import PrivacyPolicy from "./components/PrivacyPolicy";
 
 
 import { API_URL } from "./config";
@@ -761,25 +762,25 @@ const isHomePage = location.pathname === "/";
       )}
 
       <Routes>
-        <Route
-          path="/"
-          element={
-            <PropertyList
-              properties={filteredProperties}
-              favorites={favorites}
-              toggleFav={toggleFav}
-              fmt={fmt}
-              setSelectedProperty={(p) =>
-                navigate(`/property/${p.id || p._id}`, {
-                  state: { selectedProperty: p },
-                })
-              }
-              currentUser={currentUser}
-              loading={isFetchingProperties}
-            />
-          }
-        />
-
+  <Route path="/privacy" element={<PrivacyPolicy />} />
+  <Route
+    path="/"
+    element={
+      <PropertyList
+        properties={filteredProperties}
+        favorites={favorites}
+        toggleFav={toggleFav}
+        fmt={fmt}
+        setSelectedProperty={(p) =>
+          navigate(`/property/${p.id || p._id}`, {
+            state: { selectedProperty: p },
+          })
+        }
+        currentUser={currentUser}
+        loading={isFetchingProperties}
+      />
+    }
+  />
         <Route
           path="/map"
           element={
