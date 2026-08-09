@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Property LS</string>
+    <string name="title_activity_main">Property LS</string>
+    <string name="package_name">ls.co.property</string>
+    <string name="custom_url_scheme">ls.co.property</string>
+</resources>
