@@ -456,9 +456,9 @@ export default function PropertyList({
   <button
     type="button"
     onClick={() => setShowPopular((prev) => !prev)}
-    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100"
+    className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2.5 sm:text-sm"
   >
-    <TrendingIcon className="h-4 w-4" />
+    <TrendingIcon className="h-3 w-3 sm:h-4 sm:w-4" />
 <span>{showPopular ? "Hide Popular" : "View Popular"}</span>
   </button>
 </div>
