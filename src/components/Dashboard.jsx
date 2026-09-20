@@ -2129,18 +2129,38 @@ export default function Dashboard({
                       </span>
                     </div>
 
-                    <div
-                      className="inline-flex shrink-0 items-center gap-1.5"
-                      title={`${Number(property.views || 0).toLocaleString()} ${
-                        Number(property.views || 0) === 1 ? "view" : "views"
-                      }`}
-                    >
-                      <EyeIcon className="h-3.5 w-3.5" />
-                      <span>
-                        {Number(property.views || 0).toLocaleString()}{" "}
-                        {Number(property.views || 0) === 1 ? "view" : "views"}
-                      </span>
-                    </div>
+                    
+ {!isSavedView && isAgent && (
+  <div className="flex shrink-0 items-center gap-3">
+    <div
+      className="inline-flex items-center gap-1.5"
+      title={`${Number(property.views || 0).toLocaleString()} ${
+        Number(property.views || 0) === 1 ? "view" : "views"
+      }`}
+    >
+      <EyeIcon className="h-3.5 w-3.5" />
+
+      <span>
+        {Number(property.views || 0).toLocaleString()}{" "}
+        {Number(property.views || 0) === 1 ? "view" : "views"}
+      </span>
+    </div>
+
+    <div
+      className="inline-flex items-center gap-1.5"
+      title={`${Number(property.favorite_count || 0).toLocaleString()} ${
+        Number(property.favorite_count || 0) === 1 ? "save" : "saves"
+      }`}
+    >
+      <HeartIcon className="h-3.5 w-3.5" />
+
+      <span>
+        {Number(property.favorite_count || 0).toLocaleString()}{" "}
+        {Number(property.favorite_count || 0) === 1 ? "save" : "saves"}
+      </span>
+    </div>
+  </div>
+)}
                   </div>
 
                   {!isSavedView && (

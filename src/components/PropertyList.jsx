@@ -22,6 +22,23 @@ function LocationIcon({ className = "h-4 w-4" }) {
     </svg>
   );
 }
+function TrendingIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 17l6-6 4 4 8-8" />
+      <path d="M15 7h6v6" />
+    </svg>
+  );
+}
 
 function BedIcon({ className = "h-4 w-4" }) {
   return (
@@ -188,6 +205,7 @@ function ChevronRightIcon({ className = "h-4 w-4" }) {
 
 export default function PropertyList({
   properties = [],
+  popularProperties = [],
   favorites = [],
   toggleFav,
   fmt,
@@ -199,6 +217,7 @@ export default function PropertyList({
 
   const propertiesPerPage = 12;
   const [currentPage, setCurrentPage] = useState(1);
+  const [showPopular, setShowPopular] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -421,6 +440,114 @@ export default function PropertyList({
 
   return (
     <div className="mx-auto max-w-7xl p-4">
+      {popularProperties.length > 0 && (
+  <section className="mb-7">
+    <div className="mb-4 flex items-center justify-between gap-4">
+  <div>
+    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
+      Popular Properties
+    </h2>
+
+    <p className="mt-1 text-sm text-gray-500">
+      Properties getting the most attention on Property LS
+    </p>
+  </div>
+
+  <button
+    type="button"
+    onClick={() => setShowPopular((prev) => !prev)}
+    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100"
+  >
+    <TrendingIcon className="h-4 w-4" />
+<span>{showPopular ? "Hide Popular" : "View Popular"}</span>
+  </button>
+</div>
+
+    {showPopular && (
+  <div className="flex gap-4 overflow-x-auto pb-3">
+  {popularProperties.map((property) => {
+    const id = getPropertyId(property);
+    const image = getImageUrl(property);
+    const priceDisplay = getPriceDisplay(property);
+
+    const handlePopularOpen = () => {
+      if (typeof setSelectedProperty === "function") {
+        setSelectedProperty(property);
+      }
+
+      navigate(`/property/${id}`, {
+        state: {
+          selectedProperty: property,
+        },
+      });
+    };
+
+    return (
+      <article
+        key={`popular-${id}`}
+        role="button"
+        tabIndex={0}
+        onClick={handlePopularOpen}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            handlePopularOpen();
+          }
+        }}
+      className="group w-[78vw] max-w-[280px] shrink-0 cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md sm:w-[250px] lg:w-[260px]"
+      >
+        <div className="relative h-40 overflow-hidden bg-gray-100">
+          <img
+            src={image}
+            alt={property?.title || "Property"}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]"
+            loading="lazy"
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = fallbackImage;
+            }}
+          />
+
+          <div className="absolute left-3 top-3 rounded-full bg-gray-900/85 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
+            Popular
+          </div>
+        </div>
+
+        <div className="p-3.5">
+          <div className="flex items-baseline gap-1">
+            <p className="text-base font-bold text-blue-600">
+              {priceDisplay.price}
+            </p>
+
+            {priceDisplay.suffix && (
+              <span className="text-xs font-medium text-gray-500">
+                {priceDisplay.suffix}
+              </span>
+            )}
+          </div>
+
+          <h3 className="mt-1 line-clamp-1 text-sm font-semibold text-gray-950">
+            {property?.title || "Untitled Property"}
+          </h3>
+
+          <div className="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-gray-500">
+            <LocationIcon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+
+            <p className="truncate">
+              {property?.location || "Unknown location"}
+              {property?.district
+                ? `, ${property.district}`
+                : ", Lesotho"}
+            </p>
+          </div>
+        </div>
+      </article>
+    );
+  })}
+</div>
+)}
+</section>
+)}
       <div className="mb-4 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-gray-600">
           Showing {indexOfFirstProperty + 1}-

@@ -48,6 +48,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [properties, setProperties] = useState([]);
   const [favorites, setFavorites] = useState([]);
+  const [popularProperties, setPopularProperties] = useState([]);
 
   const [isFetchingProperties, setIsFetchingProperties] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
@@ -223,23 +224,66 @@ export default function App() {
   }, []);
 
   const toggleFav = useCallback(
-    (id) => {
-      if (!currentUser) {
-        showAuthNotice("Please sign in to save properties.");
-        return;
+  async (id) => {
+    if (!currentUser) {
+      showAuthNotice("Please sign in to save properties.");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      showAuthNotice("Please sign in to save properties.");
+      return;
+    }
+
+    setAuthNotice("");
+    clearFeedback();
+
+    const isCurrentlySaved = favorites.some(
+      (favId) => String(favId) === String(id)
+    );
+
+    try {
+      if (isCurrentlySaved) {
+        await axios.delete(`${API_URL}/properties/${id}/favorite`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          timeout: 15000,
+        });
+
+        setFavorites((prev) =>
+          prev.filter((favId) => String(favId) !== String(id))
+        );
+      } else {
+        await axios.post(
+          `${API_URL}/properties/${id}/favorite`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            timeout: 15000,
+          }
+        );
+
+        setFavorites((prev) => [...prev, id]);
       }
-
-      setAuthNotice("");
-      clearFeedback();
-
-      setFavorites((prev) =>
-        prev.some((favId) => String(favId) === String(id))
-          ? prev.filter((favId) => String(favId) !== String(id))
-          : [...prev, id]
-      );
-    },
-    [currentUser, clearFeedback, showAuthNotice]
-  );
+    } catch (err) {
+      console.error("Failed to update favorite:", err);
+      showError(getErrorMessage(err, "Failed to update saved property."));
+    }
+  },
+  [
+    currentUser,
+    favorites,
+    clearFeedback,
+    showAuthNotice,
+    showError,
+    getErrorMessage,
+  ]
+);
 
   useEffect(() => {
     try {
@@ -264,57 +308,41 @@ export default function App() {
     }
   }, [clearSession]);
 
-  useEffect(() => {
+ useEffect(() => {
+  const fetchFavorites = async () => {
     if (!currentUser) {
       setFavorites([]);
       return;
     }
 
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setFavorites([]);
+      return;
+    }
+
     try {
-      const userId =
-        currentUser?.id ||
-        currentUser?.user?.id ||
-        currentUser?._id ||
-        currentUser?.user?._id;
+      const res = await axios.get(`${API_URL}/properties/favorites/mine`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        timeout: 15000,
+      });
 
-      if (!userId) {
-        setFavorites([]);
-        return;
-      }
+      const favoriteIds = Array.isArray(res.data)
+        ? res.data.map((property) => property.id || property.property_id)
+        : [];
 
-      const storageKey = `favorites_${userId}`;
-      const storedFavorites = localStorage.getItem(storageKey);
-
-      if (storedFavorites) {
-        const parsedFavorites = JSON.parse(storedFavorites);
-        setFavorites(Array.isArray(parsedFavorites) ? parsedFavorites : []);
-      } else {
-        setFavorites([]);
-      }
+      setFavorites(favoriteIds);
     } catch (error) {
-      console.error("Failed to load favorites:", error);
+      console.error("Failed to load favorites from database:", error);
       setFavorites([]);
     }
-  }, [currentUser]);
+  };
 
-  useEffect(() => {
-    if (!currentUser) return;
-
-    try {
-      const userId =
-        currentUser?.id ||
-        currentUser?.user?.id ||
-        currentUser?._id ||
-        currentUser?.user?._id;
-
-      if (!userId) return;
-
-      const storageKey = `favorites_${userId}`;
-      localStorage.setItem(storageKey, JSON.stringify(favorites));
-    } catch (error) {
-      console.error("Failed to save favorites:", error);
-    }
-  }, [favorites, currentUser]);
+  fetchFavorites();
+}, [currentUser]);
 
   useEffect(() => {
     if (!showWelcomeBanner) return;
@@ -374,6 +402,27 @@ export default function App() {
     },
     [normalizeProperty, clearFeedback, showError, getErrorMessage]
   );
+
+  useEffect(() => {
+  const fetchPopularProperties = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/properties/popular`, {
+        timeout: 15000,
+      });
+
+      const formatted = Array.isArray(res.data)
+        ? res.data.map(normalizeProperty)
+        : [];
+
+      setPopularProperties(formatted);
+    } catch (error) {
+      console.error("Failed to load popular properties:", error);
+      setPopularProperties([]);
+    }
+  };
+
+  fetchPopularProperties();
+}, [normalizeProperty]);
 
   useEffect(() => {
     fetchProperties();
@@ -770,6 +819,7 @@ const isHomePage = location.pathname === "/";
     element={
       <PropertyList
         properties={filteredProperties}
+        popularProperties={popularProperties}
         favorites={favorites}
         toggleFav={toggleFav}
         fmt={fmt}
