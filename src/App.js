@@ -406,7 +406,7 @@ export default function App() {
   useEffect(() => {
   const fetchPopularProperties = async () => {
     try {
-      const res = await axios.get(`${API_URL}/properties/popular`, {
+      const res = await axios.get(`${API_URL}/properties/treding`, {
         timeout: 15000,
       });
 

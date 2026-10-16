@@ -217,7 +217,7 @@ export default function PropertyList({
 
   const propertiesPerPage = 12;
   const [currentPage, setCurrentPage] = useState(1);
-  const [showPopular, setShowPopular] = useState(false);
+  const [showTrending, setShowTrending] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -445,32 +445,32 @@ export default function PropertyList({
     <div className="mb-4 flex items-center justify-between gap-4">
   <div>
     <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
-      Popular Properties
+      Trending This Week
     </h2>
 
     <p className="mt-1 text-sm text-gray-500">
-      Properties getting the most attention on Property LS
+      Properties attracting interest over the past 7 days
     </p>
   </div>
 
   <button
     type="button"
-    onClick={() => setShowPopular((prev) => !prev)}
+    onClick={() => setShowTrending((prev) => !prev)}
     className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2.5 sm:text-sm"
   >
     <TrendingIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-<span>{showPopular ? "Hide Popular" : "View Popular"}</span>
+<span>{showTrending ? "Hide Trending" : "View Trending"}</span>
   </button>
 </div>
 
-    {showPopular && (
+    {showTrending && (
   <div className="flex gap-4 overflow-x-auto pb-3">
   {popularProperties.map((property) => {
     const id = getPropertyId(property);
     const image = getImageUrl(property);
     const priceDisplay = getPriceDisplay(property);
 
-    const handlePopularOpen = () => {
+    const handleTrendingOpen = () => {
       if (typeof setSelectedProperty === "function") {
         setSelectedProperty(property);
       }
@@ -484,14 +484,14 @@ export default function PropertyList({
 
     return (
       <article
-        key={`popular-${id}`}
+        key={`Trending-${id}`}
         role="button"
         tabIndex={0}
-        onClick={handlePopularOpen}
+        onClick={handleTrendingOpen}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            handlePopularOpen();
+            handleTrendingOpen();
           }
         }}
       className="group w-[78vw] max-w-[280px] shrink-0 cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md sm:w-[250px] lg:w-[260px]"
@@ -509,7 +509,7 @@ export default function PropertyList({
           />
 
           <div className="absolute left-3 top-3 rounded-full bg-gray-900/85 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
-            Popular
+            Trending
           </div>
         </div>
 
